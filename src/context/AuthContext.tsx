@@ -38,6 +38,8 @@ export type SessionUser = {
   chat_revoked_notified?: boolean;
   chat_notify_messages?: boolean;
   chat_notify_announcements?: boolean;
+  /** Profile photo URL / compressed data URL */
+  avatar_url?: string;
 };
 
 type MagicTokenBody = {
@@ -90,6 +92,7 @@ function toSession(rec: SiteRecord<MemberData>): SessionUser {
     // default true when undefined so new members get notifies after opting in
     chat_notify_messages: rec.data.chat_notify_messages !== false,
     chat_notify_announcements: rec.data.chat_notify_announcements !== false,
+    avatar_url: rec.data.avatar_url || undefined,
   };
 }
 

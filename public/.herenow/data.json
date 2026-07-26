@@ -65,6 +65,10 @@
         "chat_notify_announcements": {
           "type": "boolean",
           "default": true
+        },
+        "avatar_url": {
+          "type": "string",
+          "maxLength": 12000
         }
       },
       "access": {

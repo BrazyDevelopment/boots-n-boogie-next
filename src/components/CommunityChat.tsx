@@ -38,7 +38,8 @@ import {
 } from "@/lib/chat-notifications";
 import { hasMembershipBenefits } from "@/lib/membership";
 import { SITE, SUBSCRIPTION_PLAN } from "@/lib/data";
-import type { ChatMessageData, SiteRecord } from "@/lib/sitedata";
+import { listRecords, type ChatMessageData, type MemberData, type SiteRecord } from "@/lib/sitedata";
+import { UserAvatar } from "@/components/UserAvatar";
 
 function formatTime(iso?: string) {
   if (!iso) return "";
@@ -81,15 +82,6 @@ function formatListTime(iso?: string) {
   }
 }
 
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() || "")
-    .join("");
-}
-
 function ChannelAvatar({ channel, size = 48 }: { channel: ChatChannel; size?: number }) {
   const announce = channel.adminOnlyPost || channel.kind === "announcements";
   return (
@@ -126,6 +118,8 @@ export function CommunityChat({
   const [settingsOpen, setSettingsOpen] = useState(false);
   /** On narrow screens, show channel list until a chat is opened */
   const [mobileInChat, setMobileInChat] = useState(false);
+  /** member_id → avatar_url for chat bubbles */
+  const [avatarByMember, setAvatarByMember] = useState<Record<string, string>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const knownIdsRef = useRef<Set<string>>(new Set());
@@ -224,6 +218,26 @@ export function CommunityChat({
       registerCommunityServiceWorker().catch(() => undefined);
     }
   }, [standalone]);
+
+  const loadAvatars = useCallback(async () => {
+    try {
+      const members = await listRecords<MemberData>("members", 300);
+      const map: Record<string, string> = {};
+      for (const m of members) {
+        if (m.data.avatar_url) map[m.id] = m.data.avatar_url;
+      }
+      // Live session avatar wins for current user
+      if (user?.avatar_url) map[user.id] = user.avatar_url;
+      setAvatarByMember(map);
+    } catch {
+      /* ignore — chat still works with initials */
+    }
+  }, [user?.id, user?.avatar_url]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadAvatars().catch(() => undefined);
+  }, [user, loadAvatars]);
 
   useEffect(() => {
     if (!user) return;
@@ -599,7 +613,22 @@ export function CommunityChat({
                     active ? "bg-accent/10" : "hover:bg-white/[0.03]"
                   }`}
                 >
-                  <ChannelAvatar channel={ch} size={52} />
+                  <div className="relative shrink-0">
+                    <ChannelAvatar channel={ch} size={52} />
+                    {prev && (
+                      <div className="absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-[#120e0b]">
+                        <UserAvatar
+                          name={prev.data.member_name}
+                          src={
+                            prev.data.member_id === user.id
+                              ? user.avatar_url || avatarByMember[prev.data.member_id]
+                              : avatarByMember[prev.data.member_id]
+                          }
+                          size={20}
+                        />
+                      </div>
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="truncate font-semibold text-cream">{ch.title}</span>
@@ -683,16 +712,34 @@ export function CommunityChat({
             {messages.map((m, idx) => {
               const mine = m.data.member_id === user.id;
               const prev = messages[idx - 1];
+              const next = messages[idx + 1];
               const showName = !mine && (!prev || prev.data.member_id !== m.data.member_id);
+              const showAvatar =
+                !mine && (!next || next.data.member_id !== m.data.member_id);
+              const avatarSrc =
+                m.data.member_id === user.id
+                  ? user.avatar_url || avatarByMember[m.data.member_id]
+                  : avatarByMember[m.data.member_id];
               return (
                 <div
                   key={m.id}
-                  className={`flex ${mine ? "justify-end" : "justify-start"} ${
+                  className={`flex items-end gap-1.5 ${mine ? "justify-end" : "justify-start"} ${
                     showName || mine ? "mt-2" : "mt-0.5"
                   }`}
                 >
+                  {!mine && (
+                    <div className="mb-0.5 w-8 shrink-0">
+                      {showAvatar ? (
+                        <UserAvatar
+                          name={m.data.member_name}
+                          src={avatarSrc}
+                          size={32}
+                        />
+                      ) : null}
+                    </div>
+                  )}
                   <div
-                    className={`relative max-w-[min(88%,28rem)] px-3 py-1.5 text-[15px] leading-snug shadow-md ${
+                    className={`relative max-w-[min(78%,26rem)] px-3 py-1.5 text-[15px] leading-snug shadow-md ${
                       mine
                         ? "rounded-2xl rounded-tr-sm bg-gradient-to-br from-accent to-[#c98a12] text-[#1a1208]"
                         : "rounded-2xl rounded-tl-sm border border-line/80 bg-[#1e1813] text-cream"
@@ -729,6 +776,13 @@ export function CommunityChat({
                       {mine && <Check size={12} className="opacity-70" strokeWidth={2.5} />}
                     </div>
                   </div>
+                  {mine && (
+                    <div className="mb-0.5 w-8 shrink-0">
+                      {(!next || next.data.member_id !== m.data.member_id) && (
+                        <UserAvatar name={user.name} src={avatarSrc} size={32} />
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -881,9 +935,7 @@ export function CommunityChat({
                 </p>
                 <div className="space-y-2 rounded-xl border border-line bg-bg/40 p-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/20 font-bold text-accent">
-                      {initials(user.name)}
-                    </div>
+                    <UserAvatar name={user.name} src={user.avatar_url} size={44} ring />
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-cream">{user.name}</p>
                       <p className="truncate text-xs text-muted">{user.email}</p>
@@ -894,7 +946,7 @@ export function CommunityChat({
                     className="block rounded-lg px-2 py-2 text-sm font-medium text-accent hover:bg-white/5"
                     onClick={() => setSettingsOpen(false)}
                   >
-                    Open dancer studio
+                    Change profile photo in studio
                   </Link>
                   {user.role !== "admin" && (
                     <button

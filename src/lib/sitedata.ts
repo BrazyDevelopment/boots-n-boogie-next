@@ -121,6 +121,8 @@ export type MemberData = {
   chat_notify_messages?: boolean;
   /** Browser/PWA notify on announcement channel */
   chat_notify_announcements?: boolean;
+  /** Profile photo (compressed data URL or external URL) — used in studio + community chat */
+  avatar_url?: string;
 };
 
 export type ChatMessageData = {

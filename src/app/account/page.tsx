@@ -14,8 +14,10 @@ import {
   XCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { UserAvatar } from "@/components/UserAvatar";
 import { CLASSES, SITE, SUBSCRIPTION_PLAN, VENUES } from "@/lib/data";
 import { formatDateUK } from "@/lib/dates";
+import { fileToAvatarDataUrl } from "@/lib/images";
 import {
   convertFreeBookingsAfterBenefits,
   dayAfterISO,
@@ -40,7 +42,7 @@ type StudioTab =
   | "classes";
 
 export default function AccountPage() {
-  const { user, loading, logout, refreshUser } = useAuth();
+  const { user, loading, logout, refreshUser, updateProfile } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<StudioTab>("overview");
   const [bookings, setBookings] = useState<{ id: string; data: BookingData }[]>([]);
@@ -48,6 +50,38 @@ export default function AccountPage() {
   const [subs, setSubs] = useState<{ id: string; data: SubscriptionData }[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarErr, setAvatarErr] = useState<string | null>(null);
+
+  async function onAvatarFile(file: File | null) {
+    if (!file || !user) return;
+    setAvatarBusy(true);
+    setAvatarErr(null);
+    setMsg(null);
+    try {
+      const url = await fileToAvatarDataUrl(file);
+      await updateProfile({ avatar_url: url });
+      setMsg("Profile photo updated — it’ll show in Community chat too.");
+    } catch (e) {
+      setAvatarErr(e instanceof Error ? e.message : "Could not update photo");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function clearAvatar() {
+    if (!user) return;
+    setAvatarBusy(true);
+    setAvatarErr(null);
+    try {
+      await updateProfile({ avatar_url: "" });
+      setMsg("Profile photo removed.");
+    } catch (e) {
+      setAvatarErr(e instanceof Error ? e.message : "Could not remove photo");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
 
   async function reload() {
     if (!user) return;
@@ -214,12 +248,15 @@ export default function AccountPage() {
   return (
     <section className="container-page py-24 md:py-28">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="section-label">Dancer studio</p>
-          <h1 className="mt-2 font-display text-4xl tracking-wide md:text-5xl">{user.name}</h1>
-          <p className="mt-2 text-muted">
-            {user.email} · {user.role === "admin" ? "Admin" : "Dancer"}
-          </p>
+        <div className="flex min-w-0 items-start gap-4">
+          <UserAvatar name={user.name} src={user.avatar_url} size={72} ring />
+          <div className="min-w-0">
+            <p className="section-label">Dancer studio</p>
+            <h1 className="mt-2 font-display text-4xl tracking-wide md:text-5xl">{user.name}</h1>
+            <p className="mt-2 text-muted">
+              {user.email} · {user.role === "admin" ? "Admin" : "Dancer"}
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {user.role === "admin" && (
@@ -263,6 +300,46 @@ export default function AccountPage() {
 
       {tab === "overview" && (
         <div className="mt-8 space-y-6">
+          <div className="card-surface flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <UserAvatar name={user.name} src={user.avatar_url} size={88} ring />
+              <div>
+                <h2 className="font-display text-2xl tracking-wide">Profile photo</h2>
+                <p className="mt-1 max-w-md text-sm text-muted">
+                  Shown on your dancer studio and in Community chat when you’re a member. Square
+                  photos work best.
+                </p>
+                {avatarErr && <p className="mt-2 text-sm text-red-400">{avatarErr}</p>}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label
+                className={`btn-primary !cursor-pointer !py-2 text-sm ${
+                  avatarBusy ? "pointer-events-none opacity-50" : ""
+                }`}
+              >
+                {avatarBusy ? "Saving…" : user.avatar_url ? "Change photo" : "Add photo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  disabled={avatarBusy}
+                  onChange={(e) => onAvatarFile(e.target.files?.[0] || null)}
+                />
+              </label>
+              {user.avatar_url && (
+                <button
+                  type="button"
+                  disabled={avatarBusy}
+                  onClick={clearAvatar}
+                  className="btn-secondary !py-2 text-sm disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-4">
             <div className="card-surface p-5">
               <p className="text-sm text-muted">Membership</p>
