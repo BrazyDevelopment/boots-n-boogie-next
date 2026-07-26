@@ -7,9 +7,9 @@ import { PayPalCheckout } from "@/components/PayPalButtons";
 import { useAuth } from "@/context/AuthContext";
 import type { BnBEvent } from "@/lib/events";
 import {
-  assertFirstTimerPlusOne,
   assertPlusOneAvailable,
   findMemberEventReg,
+  validateFirstTimerGuest,
 } from "@/lib/events";
 import { EVENT_SUBSCRIBER_DISCOUNT, hasMembershipBenefits } from "@/lib/membership";
 import { loadPaymentSettings, sendResendEmail } from "@/lib/payments";
@@ -187,7 +187,8 @@ export function EventRegister({ event }: { event: BnBEvent }) {
     if (wantPlus && opts.plus) {
       const email = opts.plus.email.trim().toLowerCase();
       if (opts.plus.first) {
-        const check = assertFirstTimerPlusOne(allRegs, email, { allowRegId: mine?.id });
+        // Free guest: never attended a BnB class or event
+        const check = await validateFirstTimerGuest(email, { allowRegId: mine?.id });
         if (!check.ok) throw new Error(check.reason);
       } else {
         const check = assertPlusOneAvailable(allRegs, email, { allowRegId: mine?.id });
@@ -500,7 +501,7 @@ export function EventRegister({ event }: { event: BnBEvent }) {
                   onChange={(e) => setPlusFirst(e.target.checked)}
                   className="accent-[var(--color-accent)]"
                 />
-                They have never been to a Boots N Boogie social before (free guest)
+                They have never been to a Boots N Boogie class or event before (free guest)
               </label>
             </>
           )}

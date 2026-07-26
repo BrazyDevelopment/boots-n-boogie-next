@@ -18,8 +18,8 @@ import { CLASSES, SITE, SUBSCRIPTION_PLAN, VENUES } from "@/lib/data";
 import { formatDateUK } from "@/lib/dates";
 import { fileToAvatarDataUrl } from "@/lib/images";
 import {
-  assertFirstTimerPlusOne,
   assertPlusOneAvailable,
+  validateFirstTimerGuest,
 } from "@/lib/events";
 import {
   convertFreeBookingsAfterBenefits,
@@ -255,7 +255,8 @@ export default function AccountPage() {
     try {
       const allRegs = await listRecords<SocialRegData>("social_regs", 400);
       if (plusFirst) {
-        const check = assertFirstTimerPlusOne(allRegs, email, { allowRegId: regId });
+        // Free guest: never attended a BnB class or event (as dancer or +1)
+        const check = await validateFirstTimerGuest(email, { allowRegId: regId });
         if (!check.ok) throw new Error(check.reason);
       } else {
         const check = assertPlusOneAvailable(allRegs, email, { allowRegId: regId });
@@ -1039,7 +1040,7 @@ export default function AccountPage() {
                           onChange={(e) => setPlusFirst(e.target.checked)}
                           className="accent-[var(--color-accent)]"
                         />
-                        First-timer free guest (never been to a BnB social)
+                        They have never been to a Boots N Boogie class or event before (free guest)
                       </label>
                       <p className="text-[11px] text-muted">
                         Clear name and email, then save, to remove this +1. Changing to a new email

@@ -50,16 +50,36 @@ export function formatDateUKWithWeekday(
   return `${weekday} ${formatDateUK(d)}`;
 }
 
-/** Single date or range from ISO start/end → dd-mm-yyyy (or "dd-mm-yyyy – dd-mm-yyyy"). */
+/**
+ * Public-facing date line for events.
+ * Prefers admin “Date label” when set (so custom copy shows on the site).
+ * Otherwise builds dd-mm-yyyy or a range from ISO start/end.
+ */
 export function formatDateRangeUK(
   startISO?: string | null,
   endISO?: string | null,
   fallbackLabel?: string
 ): string {
-  if (!startISO && fallbackLabel) return fallbackLabel;
+  const label = (fallbackLabel || "").trim();
+  if (label && label.toUpperCase() !== "TBC") {
+    return label;
+  }
+  if (!startISO) return label || "—";
   const start = formatDateUK(startISO);
   if (endISO && endISO !== startISO) {
     return `${start} – ${formatDateUK(endISO)}`;
+  }
+  return start;
+}
+
+/** Build the default public date label from ISO start/end (dd-mm-yyyy). */
+export function dateLabelFromISO(startISO?: string | null, endISO?: string | null): string {
+  if (!startISO) return "";
+  const start = formatDateUK(startISO, "");
+  if (!start || start === "—") return "";
+  if (endISO && endISO !== startISO) {
+    const end = formatDateUK(endISO, "");
+    if (end && end !== "—") return `${start} – ${end}`;
   }
   return start;
 }

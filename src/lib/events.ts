@@ -2,7 +2,12 @@
 
 import { EVENTS } from "@/lib/data";
 import { parseJsonSafe, type EventBody, type CmsContentData } from "@/lib/cms-types";
-import { listRecords, type SocialRegData, type SiteRecord } from "@/lib/sitedata";
+import {
+  listRecords,
+  type BookingData,
+  type SocialRegData,
+  type SiteRecord,
+} from "@/lib/sitedata";
 
 export type BnBEvent = {
   id: string;
@@ -175,11 +180,14 @@ export function assertPlusOneAvailable(
   return { ok: true };
 }
 
-/** Free first-timer +1: guest email must never have been a +1 or member at a social before */
+/**
+ * Free first-timer +1: guest email must never have attended a BnB class or event
+ * (as a booked dancer, event registrant, or previous +1) — cancelled history counts.
+ */
 export function assertFirstTimerPlusOne(
   regs: SiteRecord<SocialRegData>[],
   plusEmail: string,
-  opts?: { allowRegId?: string }
+  opts?: { allowRegId?: string; bookings?: SiteRecord<BookingData>[] }
 ): { ok: true } | { ok: false; reason: string } {
   const email = plusEmail.trim().toLowerCase();
   if (!email) {
@@ -188,20 +196,49 @@ export function assertFirstTimerPlusOne(
   const base = assertPlusOneAvailable(regs, email, opts);
   if (!base.ok) return base;
 
-  // Extra: any historical cancelled reg still counts as "been before" for free first-timer
-  const beenBefore = regs.some((r) => {
+  // Events / socials (including cancelled registrations)
+  const beenToEvent = regs.some((r) => {
     if (opts?.allowRegId && r.id === opts.allowRegId) return false;
     return (
       (r.data.plus_one_email || "").toLowerCase() === email ||
       (r.data.member_email || "").toLowerCase() === email
     );
   });
-  if (beenBefore) {
+  if (beenToEvent) {
     return {
       ok: false,
       reason:
-        "This guest has been to Boots N Boogie before — free +1 is for first-timers only. Uncheck first-timer or they pay guest rate.",
+        "This guest has been to a Boots N Boogie event before — free +1 is for first-timers only. Uncheck first-timer or they pay guest rate.",
     };
   }
+
+  // Classes (any booking under this email, including cancelled)
+  const bookings = opts?.bookings || [];
+  const beenToClass = bookings.some(
+    (b) => (b.data.member_email || "").toLowerCase() === email
+  );
+  if (beenToClass) {
+    return {
+      ok: false,
+      reason:
+        "This guest has been to a Boots N Boogie class before — free +1 is for first-timers only. Uncheck first-timer or they pay guest rate.",
+    };
+  }
+
   return { ok: true };
+}
+
+/** Load regs + bookings and validate free first-timer eligibility */
+export async function validateFirstTimerGuest(
+  plusEmail: string,
+  opts?: { allowRegId?: string }
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const [regs, bookings] = await Promise.all([
+    listRecords<SocialRegData>("social_regs", 500),
+    listRecords<BookingData>("bookings", 500),
+  ]);
+  return assertFirstTimerPlusOne(regs, plusEmail, {
+    allowRegId: opts?.allowRegId,
+    bookings,
+  });
 }

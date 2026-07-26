@@ -76,7 +76,7 @@ import {
   saveSiteVisibility,
   type SiteVisibilitySettings,
 } from "@/lib/site-settings";
-import { formatDateUK } from "@/lib/dates";
+import { dateLabelFromISO, formatDateUK } from "@/lib/dates";
 import { convertFreeBookingsAfterBenefits } from "@/lib/membership";
 
 type Tab =
@@ -1042,35 +1042,79 @@ export default function AdminPage() {
                 image_url: "/images/event-summer.jpg",
                 published: true,
                 sort_order: 20,
-                body: {
-                  dateLabel: "TBC",
-                  dateISO: new Date().toISOString().slice(0, 10),
-                  time: "19:00 – 23:00",
-                  doors: "",
-                  venue: SITE.venue,
-                  address: SITE.addressShort,
-                  eventStatus: "open",
-                  isSocial: true,
-                  level: "All levels",
-                  details: [],
-                  tickets: [{ id: "ga", name: "General", price: 10 }],
-                },
+                body: (() => {
+                  const dateISO = new Date().toISOString().slice(0, 10);
+                  return {
+                    dateISO,
+                    endDateISO: dateISO,
+                    dateLabel: dateLabelFromISO(dateISO, dateISO),
+                    time: "19:00 – 23:00",
+                    doors: "",
+                    venue: SITE.venue,
+                    address: SITE.addressShort,
+                    eventStatus: "open" as const,
+                    isSocial: true,
+                    level: "All levels",
+                    details: [] as string[],
+                    tickets: [{ id: "ga", name: "General", price: 10 }],
+                  };
+                })(),
               })}
               fields={(body: EventBody, setBody) => (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Date label">
-                    <input
-                      className={inputCls}
-                      value={body.dateLabel}
-                      onChange={(e) => setBody({ ...body, dateLabel: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Date ISO">
+                  <Field label="Start date" hint="Primary event date (calendar)">
                     <input
                       type="date"
                       className={inputCls}
                       value={body.dateISO}
-                      onChange={(e) => setBody({ ...body, dateISO: e.target.value })}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        const prev = body.dateISO;
+                        // Keep multi-day end only if it was already after the old start
+                        const prevEnd = body.endDateISO || prev;
+                        const keepRange =
+                          !!prevEnd &&
+                          !!prev &&
+                          prevEnd > prev &&
+                          body.endDateISO &&
+                          body.endDateISO !== prev;
+                        const endDateISO = keepRange ? body.endDateISO! : next;
+                        setBody({
+                          ...body,
+                          dateISO: next,
+                          endDateISO,
+                          dateLabel: dateLabelFromISO(next, endDateISO),
+                        });
+                      }}
+                    />
+                  </Field>
+                  <Field
+                    label="End date"
+                    hint="Same as start for one-day events. Update for multi-day workshops."
+                  >
+                    <input
+                      type="date"
+                      className={inputCls}
+                      value={body.endDateISO || body.dateISO || ""}
+                      onChange={(e) => {
+                        const endDateISO = e.target.value;
+                        setBody({
+                          ...body,
+                          endDateISO,
+                          dateLabel: dateLabelFromISO(body.dateISO, endDateISO),
+                        });
+                      }}
+                    />
+                  </Field>
+                  <Field
+                    label="Date label (shown on website)"
+                    hint="Auto-filled from start/end dates as dd-mm-yyyy. You can edit the wording."
+                  >
+                    <input
+                      className={inputCls}
+                      value={body.dateLabel}
+                      onChange={(e) => setBody({ ...body, dateLabel: e.target.value })}
+                      placeholder="e.g. 11-07-2026"
                     />
                   </Field>
                   <Field label="Time">
