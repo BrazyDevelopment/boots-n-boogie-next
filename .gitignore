@@ -1,0 +1,42 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next / build
+.next/
+out/
+dist/
+build/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# here.now local secrets & claim state (never commit)
+.herenow/credentials
+.herenow/state.json
+**/.herenow/state.json
+publish-debug.log
+out/_body.json
+out/_fin.json
+
+# debug / logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# typescript
+next-env.d.ts
+*.tsbuildinfo

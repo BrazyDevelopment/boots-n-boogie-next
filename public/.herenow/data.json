@@ -1,0 +1,663 @@
+{
+  "collections": {
+    "members": {
+      "fields": {
+        "email": {
+          "type": "email",
+          "required": true,
+          "maxLength": 120,
+          "trim": true
+        },
+        "name": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80,
+          "trim": true
+        },
+        "password_hash": {
+          "type": "string",
+          "required": true,
+          "maxLength": 200
+        },
+        "password_salt": {
+          "type": "string",
+          "required": true,
+          "maxLength": 200
+        },
+        "role": {
+          "type": "string",
+          "required": true,
+          "maxLength": 20
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 40,
+          "trim": true
+        },
+        "subscription_status": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "subscription_id": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "period_end": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "emergency_notes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "chat_joined": {
+          "type": "boolean",
+          "default": false
+        },
+        "chat_revoked_notified": {
+          "type": "boolean",
+          "default": false
+        },
+        "chat_notify_messages": {
+          "type": "boolean",
+          "default": true
+        },
+        "chat_notify_announcements": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "access": {
+        "read": "public",
+        "insert": "public",
+        "update": "public",
+        "delete": "public"
+      },
+      "publicMutation": "open",
+      "rateLimit": "2000/hour/ip"
+    },
+    "bookings": {
+      "fields": {
+        "member_id": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "member_email": {
+          "type": "email",
+          "required": true,
+          "maxLength": 120
+        },
+        "member_name": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "class_id": {
+          "type": "string",
+          "required": true,
+          "maxLength": 40
+        },
+        "class_title": {
+          "type": "string",
+          "required": true,
+          "maxLength": 120
+        },
+        "session_date": {
+          "type": "string",
+          "required": true,
+          "maxLength": 20
+        },
+        "session_time": {
+          "type": "string",
+          "required": true,
+          "maxLength": 20
+        },
+        "amount_gbp": {
+          "type": "number",
+          "required": true,
+          "minimum": 0,
+          "maximum": 500
+        },
+        "payment_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        },
+        "payment_method": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "record_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "franchisee_id": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "franchisee_town": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "venue_name": {
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "access": {
+        "read": "public",
+        "insert": "public",
+        "update": "public",
+        "delete": "public"
+      },
+      "publicMutation": "open",
+      "rateLimit": "2000/hour/ip"
+    },
+    "subscriptions": {
+      "fields": {
+        "member_id": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "member_email": {
+          "type": "email",
+          "required": true,
+          "maxLength": 120
+        },
+        "member_name": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "plan_id": {
+          "type": "string",
+          "required": true,
+          "maxLength": 40
+        },
+        "amount_gbp": {
+          "type": "number",
+          "required": true,
+          "minimum": 0,
+          "maximum": 500
+        },
+        "record_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 40
+        },
+        "account_name": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "account_number": {
+          "type": "string",
+          "required": true,
+          "maxLength": 20
+        },
+        "account_last4": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "sort_code": {
+          "type": "string",
+          "required": true,
+          "maxLength": 12
+        },
+        "mandate_ref": {
+          "type": "string",
+          "required": true,
+          "maxLength": 40
+        },
+        "payment_method": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "started_at": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "next_collection_at": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "cancelled_at": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "period_end": {
+          "type": "string",
+          "maxLength": 40
+        }
+      },
+      "access": {
+        "read": "public",
+        "insert": "public",
+        "update": "public",
+        "delete": "public"
+      },
+      "publicMutation": "open",
+      "rateLimit": "2000/hour/ip"
+    },
+    "social_regs": {
+      "fields": {
+        "member_id": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "member_email": {
+          "type": "email",
+          "required": true,
+          "maxLength": 120
+        },
+        "member_name": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "event_id": {
+          "type": "string",
+          "required": true,
+          "maxLength": 40
+        },
+        "event_title": {
+          "type": "string",
+          "required": true,
+          "maxLength": 120
+        },
+        "ticket_type": {
+          "type": "string",
+          "required": true,
+          "maxLength": 40
+        },
+        "plus_one_name": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "plus_one_email": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "plus_one_first_timer": {
+          "type": "boolean"
+        },
+        "amount_gbp": {
+          "type": "number",
+          "required": true,
+          "minimum": 0,
+          "maximum": 500
+        },
+        "payment_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        },
+        "record_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        },
+        "checked_in": {
+          "type": "boolean"
+        }
+      },
+      "access": {
+        "read": "public",
+        "insert": "public",
+        "update": "public",
+        "delete": "public"
+      },
+      "publicMutation": "open",
+      "rateLimit": "2000/hour/ip"
+    },
+    "shop_orders": {
+      "fields": {
+        "member_id": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "customer_name": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "customer_email": {
+          "type": "email",
+          "required": true,
+          "maxLength": 120
+        },
+        "customer_phone": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "items_json": {
+          "type": "string",
+          "required": true,
+          "maxLength": 4000
+        },
+        "total_gbp": {
+          "type": "number",
+          "required": true,
+          "minimum": 0,
+          "maximum": 5000
+        },
+        "record_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        },
+        "payment_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        },
+        "fulfillment_notes": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "access": {
+        "read": "public",
+        "insert": "public",
+        "update": "public",
+        "delete": "public"
+      },
+      "publicMutation": "open",
+      "rateLimit": "2000/hour/ip"
+    },
+    "franchise_enquiries": {
+      "fields": {
+        "full_name": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80,
+          "trim": true
+        },
+        "email": {
+          "type": "email",
+          "required": true,
+          "maxLength": 120
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 40,
+          "trim": true
+        },
+        "town_city": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80,
+          "trim": true
+        },
+        "region": {
+          "type": "string",
+          "maxLength": 80,
+          "trim": true
+        },
+        "experience": {
+          "type": "string",
+          "maxLength": 500,
+          "trim": true
+        },
+        "message": {
+          "type": "string",
+          "required": true,
+          "maxLength": 2000,
+          "trim": true
+        },
+        "record_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        }
+      },
+      "access": {
+        "read": "public",
+        "insert": "public",
+        "update": "public",
+        "delete": "public"
+      },
+      "publicMutation": "open",
+      "rateLimit": "2000/hour/ip"
+    },
+    "products": {
+      "fields": {
+        "sku": {
+          "type": "string",
+          "required": true,
+          "maxLength": 40
+        },
+        "name": {
+          "type": "string",
+          "required": true,
+          "maxLength": 120,
+          "trim": true
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000,
+          "trim": true
+        },
+        "price_gbp": {
+          "type": "number",
+          "required": true,
+          "minimum": 0,
+          "maximum": 500
+        },
+        "image_url": {
+          "type": "string",
+          "maxLength": 14000
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "sizes_json": {
+          "type": "string",
+          "required": true,
+          "maxLength": 500
+        },
+        "stock_json": {
+          "type": "string",
+          "required": true,
+          "maxLength": 1000
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "record_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        }
+      },
+      "access": {
+        "read": "public",
+        "insert": "public",
+        "update": "public",
+        "delete": "public"
+      },
+      "publicMutation": "open",
+      "rateLimit": "2000/hour/ip"
+    },
+    "franchisees": {
+      "fields": {
+        "full_name": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80,
+          "trim": true
+        },
+        "email": {
+          "type": "email",
+          "required": true,
+          "maxLength": 120
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "town_city": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "region": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "territory": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "started_at": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "upfront_fee_gbp": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "royalty_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "record_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "schedule_json": {
+          "type": "string",
+          "maxLength": 8000
+        }
+      },
+      "access": {
+        "read": "public",
+        "insert": "public",
+        "update": "public",
+        "delete": "public"
+      },
+      "publicMutation": "open",
+      "rateLimit": "2000/hour/ip"
+    },
+    "cms_content": {
+      "fields": {
+        "content_type": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        },
+        "slug": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "title": {
+          "type": "string",
+          "required": true,
+          "maxLength": 200,
+          "trim": true
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "body_json": {
+          "type": "string",
+          "required": true,
+          "maxLength": 14000
+        },
+        "image_url": {
+          "type": "string",
+          "maxLength": 14000
+        },
+        "published": {
+          "type": "boolean"
+        },
+        "sort_order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9999
+        },
+        "record_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        }
+      },
+      "access": {
+        "read": "public",
+        "insert": "public",
+        "update": "public",
+        "delete": "public"
+      },
+      "publicMutation": "open",
+      "rateLimit": "2000/hour/ip"
+    },
+    "chat_messages": {
+      "fields": {
+        "channel_id": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "channel_slug": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "member_id": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "member_email": {
+          "type": "email",
+          "required": true,
+          "maxLength": 120
+        },
+        "member_name": {
+          "type": "string",
+          "required": true,
+          "maxLength": 80
+        },
+        "member_role": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "body": {
+          "type": "string",
+          "required": true,
+          "maxLength": 2000,
+          "trim": true
+        },
+        "record_status": {
+          "type": "string",
+          "required": true,
+          "maxLength": 30
+        }
+      },
+      "access": {
+        "read": "public",
+        "insert": "public",
+        "update": "public",
+        "delete": "public"
+      },
+      "publicMutation": "open",
+      "rateLimit": "2000/hour/ip"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "proxies": {
+    "/api/email": {
+      "upstream": "https://api.resend.com/emails",
+      "method": "POST",
+      "headers": {
+        "Authorization": "Bearer ${RESEND_API_KEY}"
+      },
+      "rateLimit": "30/hour/ip"
+    }
+  }
+}
