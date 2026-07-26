@@ -18,6 +18,7 @@ function LoginForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState(urlEmail);
   const [phone, setPhone] = useState("");
+  const [mailingList, setMailingList] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -58,7 +59,11 @@ function LoginForm() {
     setError(null);
     setInfo(null);
     try {
-      await requestMagicLink(email, { name, phone });
+      await requestMagicLink(email, {
+        name,
+        phone,
+        mailing_list_opt_in: mailingList,
+      });
       setSent(true);
       setInfo(
         `We’ve emailed a sign-in link to ${email.trim()}. Open it on this device within 20 minutes.`
@@ -134,6 +139,23 @@ function LoginForm() {
             autoComplete="tel"
             className="mt-2 w-full rounded-xl border border-line bg-bg px-4 py-3 font-normal outline-none focus:ring-2 focus:ring-accent/40"
           />
+        </label>
+
+        <label className="flex items-start gap-3 rounded-xl border border-line bg-bg/40 p-3 text-sm">
+          <input
+            type="checkbox"
+            checked={mailingList}
+            onChange={(e) => setMailingList(e.target.checked)}
+            className="mt-0.5 accent-[var(--color-accent)]"
+          />
+          <span>
+            <span className="font-semibold text-cream">Email updates &amp; mailing list</span>
+            <span className="mt-1 block text-xs font-normal text-muted">
+              Opt in to news, class tips and event announcements. You can change this anytime in
+              your dancer studio. Active members are also on a separate subscriber list
+              automatically.
+            </span>
+          </span>
         </label>
 
         {error && <p className="text-sm text-red-400">{error}</p>}

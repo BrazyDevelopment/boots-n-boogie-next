@@ -33,6 +33,7 @@ import {
   useToasts,
 } from "@/components/admin/AdminChrome";
 import { ScheduleSlotsEditor } from "@/components/admin/ScheduleSlotsEditor";
+import { MailingAdmin } from "@/components/admin/MailingAdmin";
 import {
   DEFAULT_PAYMENT_SETTINGS,
   loadPaymentSettings,
@@ -95,6 +96,7 @@ type Tab =
   | "chat"
   | "franchise"
   | "payments"
+  | "mailing"
   | "attendance"
   | "revenue"
   | "cancel_session";
@@ -118,6 +120,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "shop", label: "Shop" },
   { id: "orders", label: "Orders" },
   { id: "franchise", label: "Franchise" },
+  { id: "mailing", label: "Mailing list" },
   { id: "payments", label: "Payments / email" },
 ];
 
@@ -1326,6 +1329,10 @@ export default function AdminPage() {
         )}
 
         {tab === "payments" && <PaymentsAdmin onSaved={flash} toast={toast} />}
+
+        {tab === "mailing" && (
+          <MailingAdmin members={members} flash={flash} toast={toast} confirm={confirm} />
+        )}
 
         {tab === "attendance" && (
           <AttendancePanel bookings={bookings} />

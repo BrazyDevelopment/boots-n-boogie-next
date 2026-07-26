@@ -40,6 +40,8 @@ export type SessionUser = {
   chat_notify_announcements?: boolean;
   /** Profile photo URL / compressed data URL */
   avatar_url?: string;
+  /** General mailing list opt-in */
+  mailing_list_opt_in?: boolean;
 };
 
 type MagicTokenBody = {
@@ -47,6 +49,8 @@ type MagicTokenBody = {
   email: string;
   name?: string;
   phone?: string;
+  /** Signup-time mailing list preference (applied when account is created) */
+  mailing_list_opt_in?: boolean;
   expires_at: string;
   used?: boolean;
 };
@@ -59,7 +63,7 @@ type AuthCtx = {
   /** Passwordless: email a one-time sign-in link */
   requestMagicLink: (
     email: string,
-    opts?: { name?: string; phone?: string }
+    opts?: { name?: string; phone?: string; mailing_list_opt_in?: boolean }
   ) => Promise<void>;
   /** Complete sign-in from link token */
   consumeMagicLink: (token: string, emailHint?: string) => Promise<void>;
@@ -93,6 +97,7 @@ function toSession(rec: SiteRecord<MemberData>): SessionUser {
     chat_notify_messages: rec.data.chat_notify_messages !== false,
     chat_notify_announcements: rec.data.chat_notify_announcements !== false,
     avatar_url: rec.data.avatar_url || undefined,
+    mailing_list_opt_in: !!rec.data.mailing_list_opt_in,
   };
 }
 
@@ -101,6 +106,7 @@ async function createMemberRecord(input: {
   name: string;
   phone?: string;
   role?: string;
+  mailing_list_opt_in?: boolean;
 }): Promise<SiteRecord<MemberData>> {
   const salt = randomSaltHex();
   // Unusable random password — accounts are passwordless
@@ -113,6 +119,7 @@ async function createMemberRecord(input: {
     role: input.role || "dancer",
     phone: input.phone?.trim() || "",
     subscription_status: "none",
+    mailing_list_opt_in: !!input.mailing_list_opt_in,
   });
 }
 
@@ -177,7 +184,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [ensureSeedAdmin, refreshUser]);
 
   const requestMagicLink = useCallback(
-    async (emailRaw: string, opts?: { name?: string; phone?: string }) => {
+    async (
+      emailRaw: string,
+      opts?: { name?: string; phone?: string; mailing_list_opt_in?: boolean }
+    ) => {
       const email = emailRaw.trim().toLowerCase();
       if (!email || !email.includes("@")) throw new Error("Enter a valid email address.");
 
@@ -197,6 +207,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token_hash = await sha256Hex(token);
       const expires_at = new Date(Date.now() + MAGIC_TTL_MS).toISOString();
 
+      // New sign-ups use the checkbox; existing accounts keep current preference unless checkbox was shown as update
+      const mailingOpt =
+        typeof opts?.mailing_list_opt_in === "boolean"
+          ? opts.mailing_list_opt_in
+          : !!existing?.data.mailing_list_opt_in;
+
       await createRecord<CmsContentData>("cms_content", {
         content_type: "auth_token",
         slug: `ml-${Date.now().toString(36)}-${token.slice(0, 8)}`,
@@ -207,6 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email,
           name: name || existing?.data.name || "",
           phone: opts?.phone?.trim() || existing?.data.phone || "",
+          mailing_list_opt_in: mailingOpt,
           expires_at,
           used: false,
         } satisfies MagicTokenBody),
@@ -296,6 +313,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: body.name || "Dancer",
         phone: body.phone,
         role: "dancer",
+        mailing_list_opt_in: !!body.mailing_list_opt_in,
+      });
+    } else if (typeof body.mailing_list_opt_in === "boolean") {
+      // Apply preference from the sign-in form when they re-request a link
+      rec = await updateRecord<MemberData>("members", rec.id, {
+        mailing_list_opt_in: body.mailing_list_opt_in,
       });
     }
 

@@ -123,6 +123,8 @@ export type MemberData = {
   chat_notify_announcements?: boolean;
   /** Profile photo (compressed data URL or external URL) — used in studio + community chat */
   avatar_url?: string;
+  /** Opted into general Boots N Boogie mailing list (marketing / news) */
+  mailing_list_opt_in?: boolean;
 };
 
 export type ChatMessageData = {

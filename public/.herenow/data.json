@@ -69,6 +69,10 @@
         "avatar_url": {
           "type": "string",
           "maxLength": 12000
+        },
+        "mailing_list_opt_in": {
+          "type": "boolean",
+          "default": false
         }
       },
       "access": {

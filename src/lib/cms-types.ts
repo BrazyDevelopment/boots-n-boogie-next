@@ -13,7 +13,9 @@ export type CmsContentType =
   /** Homepage / about "On the floor" gallery images */
   | "gallery"
   /** Subscriber community chat channel */
-  | "chat_channel";
+  | "chat_channel"
+  /** Sent / draft mailing campaigns (admin history) */
+  | "email_campaign";
 
 export type CmsContentData = {
   content_type: CmsContentType;

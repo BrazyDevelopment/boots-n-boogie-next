@@ -414,6 +414,46 @@ export default function AccountPage() {
             </div>
           </div>
 
+          <div className="card-surface space-y-3 p-5">
+            <h2 className="font-display text-2xl tracking-wide">Email preferences</h2>
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1 accent-[var(--color-accent)]"
+                checked={!!user.mailing_list_opt_in}
+                disabled={busy}
+                onChange={async (e) => {
+                  setBusy(true);
+                  setMsg(null);
+                  try {
+                    await updateProfile({ mailing_list_opt_in: e.target.checked });
+                    setMsg(
+                      e.target.checked
+                        ? "You’re on the general mailing list."
+                        : "You’ve left the general mailing list."
+                    );
+                  } catch (err) {
+                    setMsg(err instanceof Error ? err.message : "Could not update preference");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+              <span>
+                <span className="font-semibold text-cream">General mailing list</span>
+                <span className="mt-1 block text-muted">
+                  News, tips and event announcements. Separate from membership emails.
+                </span>
+              </span>
+            </label>
+            {benefitsActive && (
+              <p className="rounded-lg border border-accent/25 bg-accent/10 px-3 py-2 text-xs text-cream">
+                You’re also on the <strong>subscriber list</strong> automatically while your
+                membership benefits are active (class updates, member-only notices).
+              </p>
+            )}
+          </div>
+
           <div className="grid gap-4 md:grid-cols-4">
             <div className="card-surface p-5">
               <p className="text-sm text-muted">Membership</p>

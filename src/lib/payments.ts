@@ -68,28 +68,60 @@ export async function savePaymentSettings(settings: PaymentSettings): Promise<vo
   }
 }
 
+export type EmailAttachment = {
+  filename: string;
+  /** Base64 content (no data: prefix) */
+  content: string;
+  contentType?: string;
+};
+
 export async function sendResendEmail(opts: {
   apiKey: string;
   from: string;
   to: string[];
   subject: string;
   html: string;
-}): Promise<{ ok: boolean; error?: string }> {
+  /** Optional plain-text fallback */
+  text?: string;
+  attachments?: EmailAttachment[];
+  /**
+   * When true (default for multi-recipient), send one message per address
+   * so recipients never see each other.
+   */
+  individual?: boolean;
+}): Promise<{ ok: boolean; error?: string; sent?: number }> {
   if (!opts.to.length) return { ok: false, error: "No recipients" };
   try {
-    // Resend allows up to 50 recipients per request in some plans — batch
-    const batches: string[][] = [];
-    for (let i = 0; i < opts.to.length; i += 40) {
-      batches.push(opts.to.slice(i, i + 40));
-    }
+    const unique = Array.from(
+      new Set(opts.to.map((e) => e.trim().toLowerCase()).filter((e) => e.includes("@")))
+    );
+    if (!unique.length) return { ok: false, error: "No valid recipient emails" };
 
-    for (const batch of batches) {
-      const payload = {
+    const individual = opts.individual !== false && unique.length > 1;
+    const groups: string[][] = individual
+      ? unique.map((e) => [e])
+      : (() => {
+          const batches: string[][] = [];
+          for (let i = 0; i < unique.length; i += 40) batches.push(unique.slice(i, i + 40));
+          return batches;
+        })();
+
+    let sent = 0;
+    for (const batch of groups) {
+      const payload: Record<string, unknown> = {
         from: opts.from,
         to: batch,
         subject: opts.subject,
         html: opts.html,
       };
+      if (opts.text) payload.text = opts.text;
+      if (opts.attachments?.length) {
+        payload.attachments = opts.attachments.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          ...(a.contentType ? { content_type: a.contentType } : {}),
+        }));
+      }
 
       // Prefer same-origin proxy (here.now variables → no browser CORS issues)
       let res = await fetch("/api/email", {
@@ -119,10 +151,15 @@ export async function sendResendEmail(opts: {
 
       if (!res.ok) {
         const t = await res.text();
-        return { ok: false, error: t || `Email send failed (${res.status})` };
+        return {
+          ok: false,
+          error: t || `Email send failed (${res.status}) after ${sent} sent`,
+          sent,
+        };
       }
+      sent += batch.length;
     }
-    return { ok: true };
+    return { ok: true, sent };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Email failed" };
   }
