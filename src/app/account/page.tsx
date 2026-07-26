@@ -19,6 +19,8 @@ import { formatDateUK } from "@/lib/dates";
 import { fileToAvatarDataUrl } from "@/lib/images";
 import {
   assertPlusOneAvailable,
+  loadEventById,
+  pricingAfterPlusOneChange,
   validateFirstTimerGuest,
 } from "@/lib/events";
 import {
@@ -222,16 +224,33 @@ export default function AccountPage() {
     const name = plusName.trim();
     const email = plusEmail.trim().toLowerCase();
 
-    // Clear +1 entirely
+      const reg = socials.find((s) => s.id === regId);
+    if (!reg) {
+      setPlusErr("Registration not found.");
+      return;
+    }
+
+    // Clear +1 entirely — drop paid guest fee back to free member entry
     if (!name && !email) {
       setBusy(true);
       try {
+        const event = await loadEventById(reg.data.event_id);
+        const pricing = pricingAfterPlusOneChange({
+          event,
+          isSubscriber: hasMembershipBenefits(user.subscription_status, user.period_end),
+          hasPlus: false,
+          plusFirstTimer: false,
+        });
         await updateRecord<SocialRegData>("social_regs", regId, {
           plus_one_name: "",
           plus_one_email: "",
           plus_one_first_timer: false,
+          amount_gbp: pricing.amount_gbp,
+          ticket_type: pricing.ticket_type,
+          payment_status: pricing.payment_status,
+          payment_method: pricing.payment_method,
         });
-        setMsg("Guest removed from this event.");
+        setMsg("Guest removed. Any paid +1 fee has been cleared from this registration.");
         setEditingPlusId(null);
         await reload();
       } catch (e) {
@@ -263,12 +282,41 @@ export default function AccountPage() {
         if (!check.ok) throw new Error(check.reason);
       }
 
+      const event = await loadEventById(reg.data.event_id);
+      const pricing = pricingAfterPlusOneChange({
+        event,
+        isSubscriber: hasMembershipBenefits(user.subscription_status, user.period_end),
+        hasPlus: true,
+        plusFirstTimer: plusFirst,
+      });
+
+      // Keep PayPal "paid" only if they already settled at least this guest amount online
+      const alreadyPaidGuest =
+        reg.data.payment_status === "paid" &&
+        reg.data.payment_method === "paypal" &&
+        Number(reg.data.amount_gbp) >= pricing.amount_gbp &&
+        pricing.amount_gbp > 0 &&
+        !plusFirst;
+
       await updateRecord<SocialRegData>("social_regs", regId, {
         plus_one_name: name,
         plus_one_email: email,
         plus_one_first_timer: plusFirst,
+        amount_gbp: pricing.amount_gbp,
+        ticket_type: pricing.ticket_type,
+        payment_status: alreadyPaidGuest ? "paid" : pricing.payment_status,
+        payment_method: alreadyPaidGuest ? "paypal" : pricing.payment_method,
       });
-      setMsg("Guest details saved.");
+
+      if (pricing.guestFee > 0 && !alreadyPaidGuest) {
+        setMsg(
+          `Guest saved. £${pricing.guestFee.toFixed(2)} paid +1 fee added — pay at the door (or open the event page to pay online).`
+        );
+      } else if (plusFirst) {
+        setMsg("Guest saved as free first-timer +1 (no extra fee).");
+      } else {
+        setMsg("Guest details saved.");
+      }
       setEditingPlusId(null);
       await reload();
     } catch (e) {
@@ -1042,9 +1090,15 @@ export default function AccountPage() {
                         />
                         They have never been to a Boots N Boogie class or event before (free guest)
                       </label>
+                      {!plusFirst && (
+                        <p className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-cream">
+                          Paid guest: the lowest ticket price for this event will be added to your
+                          registration (pay at the door). Your member entry stays free.
+                        </p>
+                      )}
                       <p className="text-[11px] text-muted">
-                        Clear name and email, then save, to remove this +1. Changing to a new email
-                        must not already be used as someone else’s +1.
+                        Clear name and email, then save, to remove this +1 (and any paid guest fee).
+                        A guest email can only be used as a +1 once.
                       </p>
                       {plusErr && <p className="text-xs text-red-400">{plusErr}</p>}
                       <div className="flex flex-wrap gap-2">

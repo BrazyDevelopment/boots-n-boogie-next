@@ -242,3 +242,79 @@ export async function validateFirstTimerGuest(
     bookings,
   });
 }
+
+/** Lowest non-zero ticket price on the event (used as paid +1 guest rate). */
+export function guestTicketPrice(event: BnBEvent | null | undefined): number {
+  if (!event?.tickets?.length) return 10;
+  const prices = event.tickets.map((t) => Number(t.price) || 0).filter((p) => p > 0);
+  if (!prices.length) return 10;
+  return Math.min(...prices);
+}
+
+/**
+ * Recompute social registration amount after add/edit/remove of a member’s +1.
+ * Subscriber social: member entry free; free first-timer +1 = £0; paid +1 = guest ticket price.
+ */
+export function pricingAfterPlusOneChange(opts: {
+  event: BnBEvent | null;
+  isSubscriber: boolean;
+  hasPlus: boolean;
+  plusFirstTimer: boolean;
+}): {
+  amount_gbp: number;
+  ticket_type: string;
+  payment_status: string;
+  payment_method: string;
+  guestFee: number;
+} {
+  const guestFee = guestTicketPrice(opts.event);
+  const isSocial = opts.event?.isSocial !== false;
+
+  if (opts.isSubscriber && isSocial) {
+    if (!opts.hasPlus) {
+      return {
+        amount_gbp: 0,
+        ticket_type: "subscriber_free",
+        payment_status: "complimentary",
+        payment_method: "membership",
+        guestFee: 0,
+      };
+    }
+    if (opts.plusFirstTimer) {
+      return {
+        amount_gbp: 0,
+        ticket_type: "subscriber_plus_one_free",
+        payment_status: "complimentary",
+        payment_method: "membership",
+        guestFee: 0,
+      };
+    }
+    // Paid +1 after solo free member booking — charge guest ticket only
+    return {
+      amount_gbp: guestFee,
+      ticket_type: "subscriber_plus_one_paid",
+      payment_status: "pay_at_door",
+      payment_method: "pay_at_door",
+      guestFee,
+    };
+  }
+
+  // Non-social / non-member: keep guest fee additive if they have a paid +1
+  if (opts.hasPlus && !opts.plusFirstTimer) {
+    return {
+      amount_gbp: guestFee,
+      ticket_type: "plus_one_paid",
+      payment_status: "pay_at_door",
+      payment_method: "pay_at_door",
+      guestFee,
+    };
+  }
+
+  return {
+    amount_gbp: 0,
+    ticket_type: opts.hasPlus ? "plus_one_free" : "general",
+    payment_status: "complimentary",
+    payment_method: "complimentary",
+    guestFee: 0,
+  };
+}
