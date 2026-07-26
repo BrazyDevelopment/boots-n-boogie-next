@@ -1,12 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CalendarDays, MapPin, ArrowRight } from "lucide-react";
-import type { EVENTS } from "@/lib/data";
+import type { BnBEvent } from "@/lib/events";
 import { formatDateRangeUK } from "@/lib/dates";
 
-type EventItem = (typeof EVENTS)[number];
-
-export function EventCard({ item }: { item: EventItem }) {
+export function EventCard({ item }: { item: BnBEvent }) {
   const open = item.status === "open";
   const dateText = formatDateRangeUK(item.dateISO, item.endDateISO, item.dateLabel);
   return (
@@ -18,6 +16,7 @@ export function EventCard({ item }: { item: EventItem }) {
           fill
           className="object-cover transition duration-500 group-hover:scale-105"
           sizes="(max-width: 768px) 100vw, 40vw"
+          unoptimized={item.image.startsWith("data:")}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-bg-card/80 via-transparent to-transparent md:bg-gradient-to-r" />
       </div>

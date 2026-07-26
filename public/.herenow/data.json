@@ -270,7 +270,7 @@
         "event_id": {
           "type": "string",
           "required": true,
-          "maxLength": 40
+          "maxLength": 80
         },
         "event_title": {
           "type": "string",
@@ -280,7 +280,7 @@
         "ticket_type": {
           "type": "string",
           "required": true,
-          "maxLength": 40
+          "maxLength": 80
         },
         "plus_one_name": {
           "type": "string",
@@ -303,6 +303,14 @@
           "type": "string",
           "required": true,
           "maxLength": 30
+        },
+        "payment_method": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "payment_ref": {
+          "type": "string",
+          "maxLength": 120
         },
         "record_status": {
           "type": "string",

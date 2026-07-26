@@ -187,6 +187,10 @@ export type SocialRegData = {
   plus_one_first_timer?: boolean;
   amount_gbp: number;
   payment_status: string;
+  /** pay_at_door | paypal | complimentary | membership */
+  payment_method?: string;
+  /** e.g. PayPal order id */
+  payment_ref?: string;
   record_status: string;
   checked_in?: boolean;
 };
