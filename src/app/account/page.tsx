@@ -18,6 +18,10 @@ import { CLASSES, SITE, SUBSCRIPTION_PLAN, VENUES } from "@/lib/data";
 import { formatDateUK } from "@/lib/dates";
 import { fileToAvatarDataUrl } from "@/lib/images";
 import {
+  assertFirstTimerPlusOne,
+  assertPlusOneAvailable,
+} from "@/lib/events";
+import {
   convertFreeBookingsAfterBenefits,
   dayAfterISO,
   endOfMonthISO,
@@ -31,6 +35,7 @@ import {
   type MemberData,
   type SocialRegData,
   type SubscriptionData,
+  type SiteRecord,
 } from "@/lib/sitedata";
 
 type StudioTab =
@@ -51,6 +56,12 @@ export default function AccountPage() {
   const [busy, setBusy] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarErr, setAvatarErr] = useState<string | null>(null);
+  /** Which social reg is being edited for +1 */
+  const [editingPlusId, setEditingPlusId] = useState<string | null>(null);
+  const [plusName, setPlusName] = useState("");
+  const [plusEmail, setPlusEmail] = useState("");
+  const [plusFirst, setPlusFirst] = useState(true);
+  const [plusErr, setPlusErr] = useState<string | null>(null);
 
   async function onAvatarFile(file: File | null) {
     if (!file || !user) return;
@@ -177,6 +188,90 @@ export default function AccountPage() {
       await reload();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Could not cancel");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelEventReg(id: string) {
+    if (!confirm("Cancel this event registration?")) return;
+    setBusy(true);
+    try {
+      await updateRecord<SocialRegData>("social_regs", id, { record_status: "cancelled" });
+      setMsg("Event registration cancelled.");
+      setEditingPlusId(null);
+      await reload();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Could not cancel event");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEditPlus(reg: SiteRecord<SocialRegData>) {
+    setEditingPlusId(reg.id);
+    setPlusName(reg.data.plus_one_name || "");
+    setPlusEmail(reg.data.plus_one_email || "");
+    setPlusFirst(reg.data.plus_one_first_timer !== false);
+    setPlusErr(null);
+  }
+
+  async function savePlusOne(regId: string) {
+    if (!user) return;
+    setPlusErr(null);
+    const name = plusName.trim();
+    const email = plusEmail.trim().toLowerCase();
+
+    // Clear +1 entirely
+    if (!name && !email) {
+      setBusy(true);
+      try {
+        await updateRecord<SocialRegData>("social_regs", regId, {
+          plus_one_name: "",
+          plus_one_email: "",
+          plus_one_first_timer: false,
+        });
+        setMsg("Guest removed from this event.");
+        setEditingPlusId(null);
+        await reload();
+      } catch (e) {
+        setPlusErr(e instanceof Error ? e.message : "Could not update guest");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (!name) {
+      setPlusErr("Enter your +1’s full name (or clear both fields to remove them).");
+      return;
+    }
+    if (!email || !email.includes("@")) {
+      setPlusErr("Enter a valid email for your +1.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const allRegs = await listRecords<SocialRegData>("social_regs", 400);
+      if (plusFirst) {
+        const check = assertFirstTimerPlusOne(allRegs, email, { allowRegId: regId });
+        if (!check.ok) throw new Error(check.reason);
+      } else {
+        const check = assertPlusOneAvailable(allRegs, email, { allowRegId: regId });
+        if (!check.ok) throw new Error(check.reason);
+      }
+
+      await updateRecord<SocialRegData>("social_regs", regId, {
+        plus_one_name: name,
+        plus_one_email: email,
+        plus_one_first_timer: plusFirst,
+      });
+      setMsg("Guest details saved.");
+      setEditingPlusId(null);
+      await reload();
+    } catch (e) {
+      setPlusErr(e instanceof Error ? e.message : "Could not save guest");
     } finally {
       setBusy(false);
     }
@@ -475,7 +570,10 @@ export default function AccountPage() {
             </div>
             <div className="card-surface p-5">
               <p className="text-sm text-muted">Bookings</p>
-              <p className="mt-2 font-display text-3xl">{bookings.length}</p>
+              <p className="mt-2 font-display text-3xl">
+                {bookings.filter((b) => b.data.record_status !== "cancelled").length +
+                  socials.filter((s) => s.data.record_status !== "cancelled").length}
+              </p>
             </div>
             <div className="card-surface p-5">
               <p className="text-sm text-muted">Social +1s</p>
@@ -538,10 +636,15 @@ export default function AccountPage() {
       )}
 
       {tab === "bookings" && (
-        <div className="mt-8 space-y-3">
+        <div className="mt-8 space-y-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-2xl tracking-wide">Your class bookings</h2>
-            <div className="flex gap-2">
+            <div>
+              <h2 className="font-display text-2xl tracking-wide">Your bookings</h2>
+              <p className="mt-1 text-sm text-muted">
+                Classes and events you’ve registered for. Manage guests under +1 guests.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 className="btn-secondary !py-2 text-sm"
@@ -550,101 +653,186 @@ export default function AccountPage() {
                 Refresh
               </button>
               <Link href="/book/" className="btn-primary !py-2 text-sm">
-                New booking
+                Book a class
+              </Link>
+              <Link href="/events/" className="btn-secondary !py-2 text-sm">
+                Browse events
               </Link>
             </div>
           </div>
-          {bookings.length === 0 && (
-            <p className="text-sm text-muted">
-              No bookings found for {user.email}. If you just booked, press Refresh.
-            </p>
-          )}
-          {(() => {
-            const sorted = bookings
+
+          {/* ── Classes ── */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted">
+              Classes (
+              {bookings.filter((b) => b.data.record_status !== "cancelled").length} active)
+            </h3>
+            {bookings.filter((b) => b.data.record_status !== "cancelled").length === 0 && (
+              <p className="text-sm text-muted">No active class bookings.</p>
+            )}
+            {bookings
+              .filter((b) => b.data.record_status !== "cancelled")
               .slice()
-              .sort((a, b) => b.data.session_date.localeCompare(a.data.session_date));
-            const active = sorted.filter((b) => b.data.record_status !== "cancelled");
-            const cancelled = sorted.filter((b) => b.data.record_status === "cancelled");
-            return (
-              <>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-muted">
-                  Active bookings ({active.length})
-                </h3>
-                {active.length === 0 && (
-                  <p className="text-sm text-muted">No active bookings.</p>
-                )}
-                {active.map((b) => (
-                  <div
-                    key={b.id}
-                    className="card-surface flex flex-wrap items-start justify-between gap-4 p-5 text-sm"
-                  >
-                    <div>
-                      <div className="font-semibold text-cream">{b.data.class_title}</div>
-                      <div className="text-muted">
-                        {formatDateUK(b.data.session_date)} · {b.data.session_time}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        <span className="rounded-full bg-white/8 px-2 py-0.5">
-                          {b.data.record_status}
-                        </span>
-                        <span className="rounded-full bg-white/8 px-2 py-0.5">
-                          {b.data.payment_status}
-                        </span>
-                        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-accent">
-                          {b.data.payment_method === "membership_free"
-                            ? "Free member class"
-                            : b.data.payment_status === "pay_at_class"
-                              ? `£${Number(b.data.amount_gbp).toFixed(2)} pay at class`
-                              : `£${Number(b.data.amount_gbp).toFixed(2)}`}
-                        </span>
-                      </div>
+              .sort((a, b) => b.data.session_date.localeCompare(a.data.session_date))
+              .map((b) => (
+                <div
+                  key={b.id}
+                  className="card-surface flex flex-wrap items-start justify-between gap-4 p-5 text-sm"
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+                        Class
+                      </span>
+                      <span className="font-semibold text-cream">{b.data.class_title}</span>
                     </div>
+                    <div className="mt-1 text-muted">
+                      {formatDateUK(b.data.session_date)} · {b.data.session_time}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full bg-white/8 px-2 py-0.5">
+                        {b.data.payment_status}
+                      </span>
+                      <span className="rounded-full bg-accent/15 px-2 py-0.5 text-accent">
+                        {b.data.payment_method === "membership_free"
+                          ? "Free member class"
+                          : b.data.payment_status === "pay_at_class"
+                            ? `£${Number(b.data.amount_gbp).toFixed(2)} pay at class`
+                            : `£${Number(b.data.amount_gbp).toFixed(2)}`}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => cancelBooking(b.id)}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-red-400"
+                  >
+                    <XCircle size={14} /> Cancel
+                  </button>
+                </div>
+              ))}
+          </div>
+
+          {/* ── Events ── */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted">
+              Events (
+              {socials.filter((s) => s.data.record_status !== "cancelled").length} active)
+            </h3>
+            {socials.filter((s) => s.data.record_status !== "cancelled").length === 0 && (
+              <p className="text-sm text-muted">
+                No event registrations yet.{" "}
+                <Link href="/events/" className="font-semibold text-accent hover:underline">
+                  Browse events
+                </Link>
+              </p>
+            )}
+            {socials
+              .filter((s) => s.data.record_status !== "cancelled")
+              .map((s) => (
+                <div
+                  key={s.id}
+                  className="card-surface flex flex-wrap items-start justify-between gap-4 p-5 text-sm"
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
+                        Event
+                      </span>
+                      <span className="font-semibold text-cream">{s.data.event_title}</span>
+                    </div>
+                    <div className="mt-1 text-muted">
+                      {(s.data.ticket_type || "").replaceAll("_", " ")}
+                      {s.data.plus_one_name ? ` · +1: ${s.data.plus_one_name}` : ""}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full bg-white/8 px-2 py-0.5">
+                        {s.data.payment_status}
+                      </span>
+                      <span className="rounded-full bg-accent/15 px-2 py-0.5 text-accent">
+                        £{Number(s.data.amount_gbp).toFixed(2)}
+                        {s.data.payment_method ? ` · ${s.data.payment_method}` : ""}
+                      </span>
+                      {s.data.checked_in && (
+                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-300">
+                          Checked in
+                        </span>
+                      )}
+                    </div>
+                    {benefitsActive && (
+                      <p className="mt-2 text-xs text-muted">
+                        Manage / change your +1 in the{" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-accent hover:underline"
+                          onClick={() => setTab("guests")}
+                        >
+                          +1 guests
+                        </button>{" "}
+                        tab.
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <Link
+                      href={`/events/${s.data.event_id}/`}
+                      className="text-xs font-bold text-accent hover:underline"
+                    >
+                      Event page →
+                    </Link>
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => cancelBooking(b.id)}
+                      onClick={() => cancelEventReg(s.id)}
                       className="inline-flex items-center gap-1 text-xs font-bold text-red-400"
                     >
                       <XCircle size={14} /> Cancel
                     </button>
                   </div>
-                ))}
+                </div>
+              ))}
+          </div>
 
-                {cancelled.length > 0 && (
-                  <>
-                    <h3 className="mt-6 text-sm font-bold uppercase tracking-wider text-red-400">
-                      Cancelled bookings ({cancelled.length})
-                    </h3>
-                    {cancelled.map((b) => (
-                      <div
-                        key={b.id}
-                        className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-red-500/40 bg-red-950/40 p-5 text-sm opacity-90"
-                      >
-                        <div>
-                          <div className="font-semibold text-red-300 line-through decoration-red-400/80">
-                            {b.data.class_title}
-                          </div>
-                          <div className="text-red-200/70">
-                            {formatDateUK(b.data.session_date)} · {b.data.session_time}
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                            <span className="rounded-full bg-red-500/20 px-2 py-0.5 font-bold uppercase text-red-300">
-                              Cancelled
-                            </span>
-                            <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-red-200/80">
-                              {b.data.payment_method === "membership_free"
-                                ? "Was free member class"
-                                : `£${Number(b.data.amount_gbp).toFixed(2)}`}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </>
-            );
-          })()}
+          {/* Cancelled */}
+          {(bookings.some((b) => b.data.record_status === "cancelled") ||
+            socials.some((s) => s.data.record_status === "cancelled")) && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-red-400">
+                Cancelled
+              </h3>
+              {bookings
+                .filter((b) => b.data.record_status === "cancelled")
+                .map((b) => (
+                  <div
+                    key={b.id}
+                    className="rounded-xl border border-red-500/40 bg-red-950/40 p-5 text-sm opacity-90"
+                  >
+                    <div className="font-semibold text-red-300 line-through">
+                      Class · {b.data.class_title}
+                    </div>
+                    <div className="text-red-200/70">
+                      {formatDateUK(b.data.session_date)} · {b.data.session_time}
+                    </div>
+                  </div>
+                ))}
+              {socials
+                .filter((s) => s.data.record_status === "cancelled")
+                .map((s) => (
+                  <div
+                    key={s.id}
+                    className="rounded-xl border border-red-500/40 bg-red-950/40 p-5 text-sm opacity-90"
+                  >
+                    <div className="font-semibold text-red-300 line-through">
+                      Event · {s.data.event_title}
+                    </div>
+                    <div className="text-red-200/70">
+                      {(s.data.ticket_type || "").replaceAll("_", " ")}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -754,35 +942,136 @@ export default function AccountPage() {
       {tab === "guests" && showSubscriberPerks && (
         <div className="mt-8 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-2xl tracking-wide">Socials & +1 guests</h2>
+            <h2 className="font-display text-2xl tracking-wide">+1 guests</h2>
             <Link href="/events/" className="btn-secondary !py-2 text-sm">
               <UserPlus size={16} /> Browse events
             </Link>
           </div>
           <p className="text-sm text-muted">
-            Active members get free quarterly social entry and can bring a free +1. Register on the
-            event page.
+            Add, edit or replace your free first-timer +1 (or paid guest) for events you’re
+            registered on. Each guest email can only be used as a +1 once across all events.
           </p>
-          {socials.length === 0 && <p className="text-sm text-muted">No social registrations yet.</p>}
-          {socials.map((s) => (
-            <div key={s.id} className="card-surface p-5 text-sm">
-              <div className="font-semibold text-cream">{s.data.event_title}</div>
-              <div className="text-muted">{s.data.ticket_type.replaceAll("_", " ")}</div>
-              {s.data.plus_one_name ? (
-                <div className="mt-2 text-accent">
-                  +1: {s.data.plus_one_name}
-                  {s.data.plus_one_email ? ` · ${s.data.plus_one_email}` : ""}
-                  {s.data.plus_one_first_timer ? " · first-timer free" : ""}
+          {socials.filter((s) => s.data.record_status !== "cancelled").length === 0 && (
+            <p className="text-sm text-muted">
+              No event registrations yet.{" "}
+              <Link href="/events/" className="font-semibold text-accent hover:underline">
+                Book an event
+              </Link>{" "}
+              first, then manage your +1 here.
+            </p>
+          )}
+          {socials
+            .filter((s) => s.data.record_status !== "cancelled")
+            .map((s) => {
+              const editing = editingPlusId === s.id;
+              return (
+                <div key={s.id} className="card-surface space-y-3 p-5 text-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-cream">{s.data.event_title}</div>
+                      <div className="text-muted">
+                        {(s.data.ticket_type || "").replaceAll("_", " ")}
+                      </div>
+                      <div className="mt-1 text-xs text-muted">
+                        £{Number(s.data.amount_gbp).toFixed(2)} · {s.data.record_status}
+                        {s.data.checked_in ? " · checked in" : ""}
+                      </div>
+                    </div>
+                    <Link
+                      href={`/events/${s.data.event_id}/`}
+                      className="text-xs font-bold text-accent hover:underline"
+                    >
+                      Event page →
+                    </Link>
+                  </div>
+
+                  {!editing && (
+                    <>
+                      {s.data.plus_one_name ? (
+                        <div className="rounded-lg border border-accent/25 bg-accent/10 px-3 py-2 text-accent">
+                          <span className="font-semibold">+1:</span> {s.data.plus_one_name}
+                          {s.data.plus_one_email ? ` · ${s.data.plus_one_email}` : ""}
+                          {s.data.plus_one_first_timer ? " · first-timer free" : " · paid / returning guest"}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-line bg-bg/40 px-3 py-2 text-muted">
+                          No +1 on this registration yet
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="btn-secondary !py-1.5 text-xs"
+                        onClick={() => startEditPlus(s)}
+                      >
+                        {s.data.plus_one_name ? "Edit / change +1" : "Add a +1"}
+                      </button>
+                    </>
+                  )}
+
+                  {editing && (
+                    <div className="space-y-3 rounded-xl border border-line bg-bg/50 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted">
+                        {s.data.plus_one_name ? "Edit guest" : "Add guest"}
+                      </p>
+                      <label className="block text-xs font-semibold text-cream">
+                        Full name
+                        <input
+                          value={plusName}
+                          onChange={(e) => setPlusName(e.target.value)}
+                          className="mt-1.5 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm font-normal"
+                          placeholder="Guest name"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-cream">
+                        Email
+                        <input
+                          type="email"
+                          value={plusEmail}
+                          onChange={(e) => setPlusEmail(e.target.value)}
+                          className="mt-1.5 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm font-normal"
+                          placeholder="guest@email.com"
+                        />
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-muted">
+                        <input
+                          type="checkbox"
+                          checked={plusFirst}
+                          onChange={(e) => setPlusFirst(e.target.checked)}
+                          className="accent-[var(--color-accent)]"
+                        />
+                        First-timer free guest (never been to a BnB social)
+                      </label>
+                      <p className="text-[11px] text-muted">
+                        Clear name and email, then save, to remove this +1. Changing to a new email
+                        must not already be used as someone else’s +1.
+                      </p>
+                      {plusErr && <p className="text-xs text-red-400">{plusErr}</p>}
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => savePlusOne(s.id)}
+                          className="btn-primary !py-1.5 text-xs disabled:opacity-50"
+                        >
+                          {busy ? "Saving…" : "Save +1"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setEditingPlusId(null);
+                            setPlusErr(null);
+                          }}
+                          className="btn-secondary !py-1.5 text-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="mt-2 text-muted">No +1 on this registration</div>
-              )}
-              <div className="mt-1 text-xs text-muted">
-                £{Number(s.data.amount_gbp).toFixed(2)} · {s.data.record_status}
-                {s.data.checked_in ? " · checked in" : ""}
-              </div>
-            </div>
-          ))}
+              );
+            })}
         </div>
       )}
 
