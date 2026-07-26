@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
-  CreditCard,
   LogOut,
   MessageCircle,
   Ticket,
@@ -147,6 +146,13 @@ export default function AccountPage() {
 
   const benefitsActive = hasMembershipBenefits(user?.subscription_status, user?.period_end);
 
+  // Leave guest tab if membership benefits ended
+  useEffect(() => {
+    if (tab === "guests" && !benefitsActive) {
+      setTab("overview");
+    }
+  }, [tab, benefitsActive]);
+
   const freeThisWeek = useMemo(() => {
     if (!user || !benefitsActive) return null;
     const { start, end } = weekBoundsForDate(new Date().toISOString().slice(0, 10));
@@ -176,17 +182,18 @@ export default function AccountPage() {
     }
   }
 
-  async function cancelMembership() {
+  /** Cancel at end of paid month — keep benefits until period_end */
+  async function cancelMembershipEndOfMonth() {
     if (!user) return;
     const periodEnd = endOfMonthISO();
-    // Free classes after the paid month become full-price drop-ins
     const chargeFrom = dayAfterISO(periodEnd);
     if (
       !confirm(
-        `Cancel membership?\n\n` +
-          `• You keep free weekly classes and social benefits until ${formatDateUK(periodEnd)} (end of the month you’ve paid for).\n` +
-          `• Any free member class bookings on or after ${formatDateUK(chargeFrom)} will automatically become pay-at-class at the normal drop-in price (£${SITE.classPrice}).\n` +
-          `• Free bookings still within the paid month stay free.`
+        `Cancel membership at month end?\n\n` +
+          `• You keep free weekly classes, socials, +1 and community until ${formatDateUK(periodEnd)}.\n` +
+          `• Free class bookings on or after ${formatDateUK(chargeFrom)} become pay-at-class (£${SITE.classPrice}).\n` +
+          `• There is no refund — this only stops renewal and schedules benefits to end.\n` +
+          `• Prefer to stop perks today? Use “Cancel immediately” instead.`
       )
     )
       return;
@@ -229,6 +236,67 @@ export default function AccountPage() {
     }
   }
 
+  /**
+   * End benefits immediately (no refund). Same money outcome as month-end cancel —
+   * only the benefit window differs.
+   */
+  async function cancelMembershipImmediately() {
+    if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (
+      !confirm(
+        `Cancel membership immediately?\n\n` +
+          `• Free classes, social +1 and community chat end today.\n` +
+          `• Free class bookings from today onwards become pay-at-class (£${SITE.classPrice}).\n` +
+          `• There is no refund and no money difference vs cancelling at month end — this only ends benefits now if you prefer.\n` +
+          `• To keep benefits until month end, cancel that option instead.`
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      const active = subs.filter(
+        (s) =>
+          s.data.record_status === "active" ||
+          s.data.record_status === "pending_cash" ||
+          s.data.record_status === "cancelling"
+      );
+      for (const s of active) {
+        await updateRecord<SubscriptionData>("subscriptions", s.id, {
+          record_status: "cancelled",
+          cancelled_at: new Date().toISOString(),
+          period_end: today,
+        });
+      }
+      await updateRecord<MemberData>("members", user.id, {
+        subscription_status: "cancelled",
+        period_end: today,
+        chat_joined: false,
+      });
+
+      const { converted } = await convertFreeBookingsAfterBenefits({
+        memberId: user.id,
+        memberEmail: user.email,
+        chargeFromDate: today,
+      });
+
+      await refreshUser();
+      if (tab === "guests") setTab("overview");
+      setMsg(
+        `Membership cancelled immediately — benefits ended today.` +
+          (converted > 0
+            ? ` ${converted} free class booking${converted === 1 ? "" : "s"} ${converted === 1 ? "is" : "are"} now pay-at-class (£${SITE.classPrice}).`
+            : "") +
+          " You can resubscribe anytime from Membership."
+      );
+      await reload();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Could not cancel membership");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading || !user) {
     return (
       <section className="container-page py-36">
@@ -237,11 +305,15 @@ export default function AccountPage() {
     );
   }
 
+  const isSubscriber = benefitsActive || user.role === "admin";
+  // +1 guests is a membership perk (active / still in paid cancel period)
+  const showSubscriberPerks = benefitsActive;
+
   const tabs: { id: StudioTab; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "bookings", label: "My bookings" },
     { id: "membership", label: "Membership" },
-    { id: "guests", label: "+1 guests" },
+    ...(showSubscriberPerks ? [{ id: "guests" as const, label: "+1 guests" }] : []),
     { id: "classes", label: "Class times" },
   ];
 
@@ -288,14 +360,16 @@ export default function AccountPage() {
             {t.label}
           </button>
         ))}
-        {/* One-click full-screen chat app (WhatsApp-style shell) */}
-        <Link
-          href="/community/"
-          className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-accent transition hover:bg-accent hover:text-bg"
-        >
-          <MessageCircle size={14} />
-          Community
-        </Link>
+        {/* Subscriber (+ admin) only — full-screen community chat */}
+        {isSubscriber && (
+          <Link
+            href="/community/"
+            className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-accent transition hover:bg-accent hover:text-bg"
+          >
+            <MessageCircle size={14} />
+            Community
+          </Link>
+        )}
       </div>
 
       {tab === "overview" && (
@@ -345,10 +419,12 @@ export default function AccountPage() {
               <p className="text-sm text-muted">Membership</p>
               <p className="mt-2 font-display text-3xl text-accent">
                 {user.subscription_status === "cancelling"
-                ? `Cancelling (until ${user.period_end ? formatDateUK(user.period_end) : "end of month"})`
-                : user.subscription_status === "active"
-                  ? "Active"
-                  : user.subscription_status || "None"}
+                  ? `Cancelling (until ${user.period_end ? formatDateUK(user.period_end) : "end of month"})`
+                  : user.subscription_status === "active"
+                    ? "Active"
+                    : user.subscription_status === "cancelled"
+                      ? "Cancelled"
+                      : user.subscription_status || "None"}
               </p>
             </div>
             <div className="card-surface p-5">
@@ -377,20 +453,15 @@ export default function AccountPage() {
               <Ticket className="text-accent" size={22} />
               <span className="font-semibold text-cream">Book a class</span>
             </Link>
-            <Link
-              href="/subscribe/"
-              className="card-surface flex items-center gap-3 p-5 transition hover:border-accent/40"
-            >
-              <CreditCard className="text-accent" size={22} />
-              <span className="font-semibold text-cream">Membership options</span>
-            </Link>
-            <Link
-              href="/community/"
-              className="card-surface flex items-center gap-3 p-5 transition hover:border-accent/40"
-            >
-              <MessageCircle className="text-accent" size={22} />
-              <span className="font-semibold text-cream">Community chat</span>
-            </Link>
+            {isSubscriber && (
+              <Link
+                href="/community/"
+                className="card-surface flex items-center gap-3 p-5 transition hover:border-accent/40"
+              >
+                <MessageCircle className="text-accent" size={22} />
+                <span className="font-semibold text-cream">Community chat</span>
+              </Link>
+            )}
             <Link
               href="/events/"
               className="card-surface flex items-center gap-3 p-5 transition hover:border-accent/40"
@@ -552,14 +623,20 @@ export default function AccountPage() {
               {user.subscription_status === "cancelling" && user.period_end && (
                 <> · benefits until {formatDateUK(user.period_end)}</>
               )}
+              {user.subscription_status === "cancelled" && (
+                <> · ended{user.period_end ? ` ${formatDateUK(user.period_end)}` : ""}</>
+              )}
               {freeThisWeek && benefitsActive && (
                 <> · Free classes this week: {freeThisWeek.remaining} remaining</>
               )}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {!benefitsActive && user.subscription_status !== "pending_cash" ? (
-                <Link href="/subscribe/" className="btn-primary">
-                  Start membership
+                <Link
+                  href="/subscribe/"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400"
+                >
+                  Subscribe
                 </Link>
               ) : (
                 <>
@@ -568,19 +645,40 @@ export default function AccountPage() {
                       Book free weekly class
                     </Link>
                   )}
-                  {user.subscription_status === "active" && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={cancelMembership}
-                      className="btn-secondary"
-                    >
-                      Cancel (keep benefits to month end)
-                    </button>
+                  {(user.subscription_status === "active" ||
+                    user.subscription_status === "cancelling") && (
+                    <>
+                      {user.subscription_status === "active" && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={cancelMembershipEndOfMonth}
+                          className="inline-flex items-center justify-center gap-2 rounded-full border border-red-500/50 bg-red-500/15 px-5 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500/25 disabled:opacity-50"
+                        >
+                          Cancel at month end
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={cancelMembershipImmediately}
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-red-600/20 transition hover:bg-red-500 disabled:opacity-50"
+                      >
+                        Cancel immediately
+                      </button>
+                    </>
                   )}
                 </>
               )}
             </div>
+            {(user.subscription_status === "active" ||
+              user.subscription_status === "cancelling") && (
+              <p className="mt-4 text-xs text-muted">
+                Cancel options don’t change what you’ve already paid — choose month end to keep
+                benefits until then, or cancel immediately to end free classes, +1 guests and
+                community today.
+              </p>
+            )}
           </div>
 
           <div>
@@ -613,7 +711,7 @@ export default function AccountPage() {
         </div>
       )}
 
-      {tab === "guests" && (
+      {tab === "guests" && showSubscriberPerks && (
         <div className="mt-8 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-2xl tracking-wide">Socials & +1 guests</h2>
