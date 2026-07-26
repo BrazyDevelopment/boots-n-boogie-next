@@ -26,10 +26,8 @@ export const viewport: Viewport = {
 /** Chat PWA shell — no main site header/footer (hidden via route check in Header/Footer). */
 export default function CommunityLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-[100dvh] bg-bg text-foreground">
-      <div className="mx-auto flex min-h-[100dvh] w-full max-w-3xl flex-col px-3 pb-[env(safe-area-inset-bottom)] pt-[max(0.75rem,env(safe-area-inset-top))]">
-        {children}
-      </div>
+    <div className="flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-bg text-foreground pt-[env(safe-area-inset-top)]">
+      <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col">{children}</div>
     </div>
   );
 }

@@ -14,7 +14,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { CommunityChat } from "@/components/CommunityChat";
 import { CLASSES, SITE, SUBSCRIPTION_PLAN, VENUES } from "@/lib/data";
 import { formatDateUK } from "@/lib/dates";
 import {
@@ -37,7 +36,6 @@ type StudioTab =
   | "overview"
   | "bookings"
   | "membership"
-  | "community"
   | "guests"
   | "classes";
 
@@ -209,7 +207,6 @@ export default function AccountPage() {
     { id: "overview", label: "Overview" },
     { id: "bookings", label: "My bookings" },
     { id: "membership", label: "Membership" },
-    { id: "community", label: "Community" },
     { id: "guests", label: "+1 guests" },
     { id: "classes", label: "Class times" },
   ];
@@ -254,6 +251,14 @@ export default function AccountPage() {
             {t.label}
           </button>
         ))}
+        {/* One-click full-screen chat app (WhatsApp-style shell) */}
+        <Link
+          href="/community/"
+          className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-accent transition hover:bg-accent hover:text-bg"
+        >
+          <MessageCircle size={14} />
+          Community
+        </Link>
       </div>
 
       {tab === "overview" && (
@@ -452,19 +457,6 @@ export default function AccountPage() {
               </>
             );
           })()}
-        </div>
-      )}
-
-      {tab === "community" && (
-        <div className="mt-8 space-y-4">
-          <p className="text-sm text-muted">
-            Prefer a full-screen chat app?{" "}
-            <Link href="/community/" className="font-semibold text-accent hover:underline">
-              Open Community
-            </Link>{" "}
-            then Add to Home Screen on your phone.
-          </p>
-          <CommunityChat />
         </div>
       )}
 
