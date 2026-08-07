@@ -95,10 +95,18 @@ export default function SubscribePage() {
         account_number: an,
         sort_code: `${sc.slice(0, 2)}-${sc.slice(2, 4)}-${sc.slice(4)}`,
         mandate_ref: mandateRef(),
-        record_status: "active",
+        // Same as cash: studio activates before free classes apply
+        record_status: "pending_cash",
         payment_method: "direct_debit",
-        activateMember: true,
+        activateMember: false,
       });
+      // pending_dd on member for clearer messaging (subscription row stays pending_cash for Activate button)
+      if (user) {
+        await updateRecord<MemberData>("members", user.id, {
+          subscription_status: "pending_dd",
+        });
+        await refreshUser();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create mandate");
     } finally {
@@ -134,7 +142,8 @@ export default function SubscribePage() {
   const blocked =
     !user ||
     user.subscription_status === "active" ||
-    user.subscription_status === "pending_cash";
+    user.subscription_status === "pending_cash" ||
+    user.subscription_status === "pending_dd";
 
   return (
     <>
@@ -173,12 +182,13 @@ export default function SubscribePage() {
                 after an admin activates your membership.
               </p>
               <p>
-                <strong className="text-cream">Direct Debit</strong> — full sort code + account number
-                for the studio to set up the mandate.
+                <strong className="text-cream">Direct Debit</strong> — register with your bank
+                details for the studio to set up the mandate. Free classes unlock only after an admin
+                activates your membership.
               </p>
               <p>
-                <strong className="text-cream">Card (PayPal)</strong> — debit/credit online when
-                configured.
+                <strong className="text-cream">PayPal or card</strong> — open PayPal to pay with
+                PayPal balance, bank, or enter debit/credit card details for a monthly subscription.
               </p>
             </div>
           </div>
@@ -192,11 +202,13 @@ export default function SubscribePage() {
                 <p className="mt-3 text-muted">
                   Reference <span className="font-mono text-cream">{success.ref}</span>.
                 </p>
-                {success.mode === "cash" ? (
+                            {success.mode === "cash" || success.mode === "direct_debit" ? (
                   <p className="mt-3 text-sm text-muted">
-                    Pay £{SUBSCRIPTION_PLAN.amountGbp} cash at {VENUES.arnoldHouse.name} (
-                    {VENUES.arnoldHouse.address}). Free weekly classes and social benefits unlock
-                    after the studio activates your subscription in Admin.
+                    {success.mode === "cash"
+                      ? `Pay £${SUBSCRIPTION_PLAN.amountGbp} cash at ${VENUES.arnoldHouse.name} (${VENUES.arnoldHouse.address}). `
+                      : "We’ve saved your Direct Debit details for the studio to set up the mandate. "}
+                    Free weekly classes and social benefits unlock after the studio activates your
+                    membership in Admin.
                   </p>
                 ) : (
                   <p className="mt-3 text-sm text-muted">
@@ -204,7 +216,7 @@ export default function SubscribePage() {
                   </p>
                 )}
                 <div className="mt-6 flex flex-wrap gap-3">
-                  {success.mode !== "cash" && (
+                  {success.mode === "paypal" && (
                     <Link href="/book/" className="btn-primary">
                       Book free class
                     </Link>
@@ -230,10 +242,13 @@ export default function SubscribePage() {
                 {user?.subscription_status === "active" && (
                   <p className="text-sm text-accent">You already have an active membership.</p>
                 )}
-                {user?.subscription_status === "pending_cash" && (
+                {(user?.subscription_status === "pending_cash" ||
+                  user?.subscription_status === "pending_dd") && (
                   <p className="text-sm text-accent">
-                    Cash membership pending — pay at {VENUES.arnoldHouse.name}. Free classes unlock
-                    after admin activation.
+                    Membership pending — free classes unlock after admin activation.
+                    {user.subscription_status === "pending_cash"
+                      ? ` Pay £${SUBSCRIPTION_PLAN.amountGbp} cash at ${VENUES.arnoldHouse.name}.`
+                      : " Direct Debit details received — the studio will set up the mandate."}
                   </p>
                 )}
 
@@ -241,8 +256,8 @@ export default function SubscribePage() {
                   {(
                     [
                       ["cash", "Cash at The Arnold House", Banknote],
-                      ["direct_debit", "Direct Debit (full account details)", Shield],
-                      ["paypal", "Card via PayPal", CreditCard],
+                      ["direct_debit", "Direct Debit", Shield],
+                      ["paypal", "Subscribe via PayPal or Card", CreditCard],
                     ] as const
                   ).map(([id, label, Icon]) => (
                     <label
@@ -283,6 +298,10 @@ export default function SubscribePage() {
 
                 {payMode === "direct_debit" && (
                   <form onSubmit={onSubmitDd} className="space-y-4">
+                    <p className="text-sm text-muted">
+                      Register now with your bank details so the studio can set up Direct Debit.
+                      Admin activates membership before free classes apply.
+                    </p>
                     <label className="block text-sm font-semibold">
                       Account holder name
                       <input
@@ -315,15 +334,15 @@ export default function SubscribePage() {
                       />
                     </label>
                     <p className="text-xs text-muted">
-                      Full account number is required so the studio can set up your Direct Debit
-                      correctly. Authorise £{SUBSCRIPTION_PLAN.amountGbp.toFixed(2)} monthly.
+                      Authorise £{SUBSCRIPTION_PLAN.amountGbp.toFixed(2)} monthly once the studio
+                      activates your membership.
                     </p>
                     <button
                       type="submit"
                       disabled={busy || blocked}
                       className="btn-primary w-full disabled:opacity-50"
                     >
-                      {busy ? "Setting up…" : "Authorise Direct Debit"}
+                      {busy ? "Saving…" : "Register for Direct Debit"}
                     </button>
                   </form>
                 )}
@@ -331,9 +350,12 @@ export default function SubscribePage() {
                 {payMode === "paypal" && (
                   <div className="space-y-3">
                     <p className="text-sm text-muted">
-                      Start a <strong className="text-cream">recurring £{SUBSCRIPTION_PLAN.amountGbp}/month</strong>{" "}
-                      PayPal subscription (debit/credit card welcome). Configure the PayPal Plan ID in
-                      Admin → Payments.
+                      Start a{" "}
+                      <strong className="text-cream">
+                        recurring £{SUBSCRIPTION_PLAN.amountGbp}/month
+                      </strong>{" "}
+                      subscription via PayPal. You can use PayPal balance, link a bank, or enter
+                      debit/credit card details on the PayPal screen.
                     </p>
                     {user && !blocked ? (
                       <PayPalCheckout

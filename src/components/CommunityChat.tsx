@@ -489,12 +489,28 @@ export function CommunityChat({
 
   if (!user) {
     return (
-      <div className={`${gateShell} space-y-4 text-center`}>
-        <MessageCircle className="mx-auto text-accent" size={28} />
-        <p className="text-sm text-muted">Log in to access the subscriber community.</p>
-        <Link href="/account/login/?next=/community/" className="btn-primary !py-2 text-sm">
-          Log in
-        </Link>
+      <div className={`${gateShell} max-w-md space-y-5 text-center`}>
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/15">
+          <MessageCircle className="text-accent" size={32} />
+        </div>
+        <h2 className="font-display text-3xl tracking-wide text-cream">
+          Boots N Boogie community
+        </h2>
+        <p className="text-sm text-muted">
+          Member-only chat for studio announcements and dancing friends. Log in with an active
+          membership to join.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <Link
+            href="/account/login/?next=/community/"
+            className="btn-secondary !py-2.5 text-sm"
+          >
+            Log in
+          </Link>
+          <Link href="/subscribe/" className="btn-primary !py-2.5 text-sm">
+            Subscribe — £{SUBSCRIPTION_PLAN.amountGbp}/mo
+          </Link>
+        </div>
       </div>
     );
   }
@@ -504,18 +520,33 @@ export function CommunityChat({
 
   if (!isMember) {
     return (
-      <div className={`${gateShell} space-y-4`}>
-        <div className="flex items-center gap-3">
-          <MessageCircle className="text-accent" size={22} />
-          <h2 className="font-display text-2xl tracking-wide">Subscriber community</h2>
+      <div className={`${gateShell} max-w-lg space-y-5 text-center`}>
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/15">
+          <MessageCircle className="text-accent" size={32} />
         </div>
-        <p className="text-sm text-muted">
-          The community chat is a perk of the £{SUBSCRIPTION_PLAN.amountGbp}/month membership —
-          announcements from the studio plus a general chat with fellow dancers.
+        <h2 className="font-display text-3xl tracking-wide text-cream">
+          Join the subscriber community
+        </h2>
+        <p className="text-sm leading-relaxed text-muted">
+          Chat is included with the £{SUBSCRIPTION_PLAN.amountGbp}/month membership — studio
+          announcements, general chat with fellow dancers, free weekly class and free social entry
+          with a first-timer +1.
         </p>
-        <Link href="/subscribe/" className="btn-primary !py-2 text-sm">
-          View membership
+        <ul className="mx-auto max-w-sm space-y-2 text-left text-sm text-muted">
+          {SUBSCRIPTION_PLAN.benefits.slice(0, 4).map((b) => (
+            <li key={b} className="flex gap-2">
+              <span className="text-accent">·</span>
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+        <Link href="/subscribe/" className="btn-primary mx-auto !py-3 text-sm">
+          Go to membership · /subscribe
         </Link>
+        <p className="text-xs text-muted">
+          Already paid and waiting activation? Free classes and chat unlock once the studio activates
+          your membership.
+        </p>
       </div>
     );
   }

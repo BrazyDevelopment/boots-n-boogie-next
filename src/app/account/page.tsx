@@ -28,6 +28,7 @@ import {
   dayAfterISO,
   endOfMonthISO,
   hasMembershipBenefits,
+  membershipFreeBookingCountsAsUsed,
 } from "@/lib/membership";
 import { upcomingSessions, weekBoundsForDate } from "@/lib/schedule";
 import {
@@ -171,9 +172,9 @@ export default function AccountPage() {
     const { start, end } = weekBoundsForDate(new Date().toISOString().slice(0, 10));
     const used = bookings.filter((b) => {
       if (b.data.payment_method !== "membership_free") return false;
-      if (b.data.record_status === "cancelled") return false;
       const d = new Date(b.data.session_date + "T12:00:00");
-      return d >= start && d < end;
+      if (!(d >= start && d < end)) return false;
+      return membershipFreeBookingCountsAsUsed(b);
     }).length;
     return {
       used,

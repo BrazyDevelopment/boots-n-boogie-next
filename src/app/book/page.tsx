@@ -10,7 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { BLACKOUT_NOTE } from "@/lib/blackouts";
 import { CLASSES, SITE, SUBSCRIPTION_PLAN } from "@/lib/data";
 import { formatDateUK } from "@/lib/dates";
-import { hasMembershipBenefits } from "@/lib/membership";
+import { hasMembershipBenefits, membershipFreeBookingCountsAsUsed } from "@/lib/membership";
 import {
   upcomingSessions,
   upcomingSessionsFromSlots,
@@ -103,9 +103,10 @@ function BookForm() {
           if (b.data.member_id !== user.id && b.data.member_email?.toLowerCase() !== user.email.toLowerCase())
             return false;
           if (b.data.payment_method !== "membership_free") return false;
-          if (b.data.record_status === "cancelled") return false;
           const d = new Date(b.data.session_date + "T12:00:00");
-          return d >= start && d < end;
+          if (!(d >= start && d < end)) return false;
+          // No-show / not attended past free bookings return the free weekly entitlement
+          return membershipFreeBookingCountsAsUsed(b);
         }).length;
         const ok = freeUsed < SUBSCRIPTION_PLAN.freeSessionsPerWeek;
         setFreeAvailable(ok);

@@ -150,6 +150,8 @@ export type BookingData = {
   payment_status: string;
   payment_method?: string;
   record_status: string;
+  /** Marked present by admin — free weekly only “used” if true (or session still upcoming) */
+  attended?: boolean;
   notes?: string;
   franchisee_id?: string;
   franchisee_town?: string;

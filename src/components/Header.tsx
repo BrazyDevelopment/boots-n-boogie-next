@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Menu, ShoppingBag, Ticket, User, X } from "lucide-react";
+import { Menu, MessageCircle, ShoppingBag, Ticket, User, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { NAV, SITE } from "@/lib/data";
@@ -15,6 +15,7 @@ const PRIMARY_HREFS = [
   "/classes/",
   "/book/",
   "/events/",
+  "/community/",
   "/blog/",
   "/shop/",
   "/subscribe/",
@@ -109,6 +110,14 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <Link
+            href="/community/"
+            className="hidden h-10 items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-3 text-sm font-semibold text-accent hover:bg-accent hover:text-bg sm:inline-flex"
+            aria-label="Community chat"
+          >
+            <MessageCircle size={16} />
+            Chat
+          </Link>
+          <Link
             href="/shop/"
             className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-white/5 text-foreground hover:bg-white/10"
             aria-label="Shop cart"
@@ -157,6 +166,12 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
+            <Link
+              href="/community/"
+              className="rounded-xl px-4 py-3 text-base font-medium text-accent"
+            >
+              Community chat
+            </Link>
             <Link
               href={user ? "/account/" : "/account/login/"}
               className="rounded-xl px-4 py-3 text-base font-medium text-foreground"

@@ -46,6 +46,32 @@ export function dropInPriceForClass(classId?: string): number {
 }
 
 /**
+ * Whether a membership-free booking consumes the free weekly entitlement.
+ * - Cancelled / no_show → free returned
+ * - Explicit attended=false on a past session → free returned
+ * - Attended (or record_status attended) → free used
+ * - Session still upcoming (today or later) → free reserved/used for that week
+ * - Past session never marked attended → free returned (no-show by default after the day)
+ */
+export function membershipFreeBookingCountsAsUsed(
+  b: { data: BookingData },
+  asOfDateISO?: string
+): boolean {
+  if (b.data.payment_method !== "membership_free") return false;
+  const status = b.data.record_status || "";
+  if (status === "cancelled" || status === "no_show") return false;
+  if (b.data.attended === false) return false;
+  if (b.data.attended === true || status === "attended") return true;
+
+  const asOf = asOfDateISO || new Date().toISOString().slice(0, 10);
+  // Upcoming or same calendar day still holds the free slot until marked no-show
+  if (b.data.session_date >= asOf) return true;
+
+  // Past session without attendance → free weekly returned
+  return false;
+}
+
+/**
  * When membership ends, free member bookings on/after chargeFromDate
  * (inclusive) become full-price pay-at-class. Sessions still covered by
  * the paid month (before chargeFromDate) stay complimentary.

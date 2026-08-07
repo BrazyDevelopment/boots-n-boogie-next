@@ -141,6 +141,10 @@
           "required": true,
           "maxLength": 30
         },
+        "attended": {
+          "type": "boolean",
+          "default": false
+        },
         "notes": {
           "type": "string",
           "maxLength": 500

@@ -34,6 +34,7 @@ import {
 } from "@/components/admin/AdminChrome";
 import { ScheduleSlotsEditor } from "@/components/admin/ScheduleSlotsEditor";
 import { MailingAdmin } from "@/components/admin/MailingAdmin";
+import { AdminBookingsPanel } from "@/components/admin/AdminBookingsPanel";
 import {
   DEFAULT_PAYMENT_SETTINGS,
   loadPaymentSettings,
@@ -703,76 +704,11 @@ export default function AdminPage() {
         )}
 
         {tab === "bookings" && (
-          <AdminTable
-            headers={["Dancer", "Class", "When", "Pay", "Status", "Actions"]}
-            rows={bookings.map((b) => [
-              <>
-                {b.data.member_name}
-                <div className="text-xs text-muted">{b.data.member_email}</div>
-                <div className="text-xs text-muted">id: {b.data.member_id?.slice(0, 12)}…</div>
-              </>,
-              b.data.class_title,
-              `${formatDateUK(b.data.session_date)} ${b.data.session_time}`,
-              `£${Number(b.data.amount_gbp).toFixed(2)} · ${b.data.payment_status}`,
-              b.data.record_status,
-              <div key={b.id} className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="text-xs font-bold text-accent"
-                  onClick={async () => {
-                    await updateRecord<BookingData>("bookings", b.id, {
-                      record_status: "attended",
-                      payment_status: "paid",
-                    });
-                    await flash("Marked attended/paid");
-                  }}
-                >
-                  Attended
-                </button>
-                {(b.data.payment_status === "pay_at_class" ||
-                  b.data.payment_method === "pay_at_class") &&
-                  b.data.payment_status !== "paid" && (
-                    <button
-                      type="button"
-                      className="text-xs font-bold text-accent"
-                      onClick={async () => {
-                        await updateRecord<BookingData>("bookings", b.id, {
-                          payment_status: "paid",
-                        });
-                        await flash("Marked paid (pay at class)");
-                      }}
-                    >
-                      Mark paid
-                    </button>
-                  )}
-                <button
-                  type="button"
-                  className="text-xs font-bold text-muted"
-                  onClick={() => setEditBooking(b)}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="text-xs font-bold text-red-400"
-                  onClick={async () => {
-                    await updateRecord<BookingData>("bookings", b.id, {
-                      record_status: "cancelled",
-                    });
-                    await flash("Booking cancelled");
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="text-xs font-bold text-red-400"
-                  onClick={() => hardDelete("bookings", b.id, "booking")}
-                >
-                  Delete
-                </button>
-              </div>,
-            ])}
+          <AdminBookingsPanel
+            bookings={bookings}
+            socials={socials}
+            onChange={flash}
+            toast={toast}
           />
         )}
 
@@ -1056,7 +992,10 @@ export default function AdminPage() {
                     isSocial: true,
                     level: "All levels",
                     details: [] as string[],
-                    tickets: [{ id: "ga", name: "General", price: 10 }],
+                    tickets: [
+                      { id: "dancer", name: "Dancer", price: 10 },
+                      { id: "spectator", name: "Spectator", price: 2.5 },
+                    ],
                   };
                 })(),
               })}
@@ -1160,6 +1099,74 @@ export default function AdminPage() {
                       }
                     />
                   </Field>
+                  <div className="sm:col-span-2 space-y-3 rounded-xl border border-line bg-bg/40 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted">
+                      Ticket prices (dancers &amp; spectators)
+                    </p>
+                    <p className="text-[11px] text-muted">
+                      Configure each ticket type sold on the event page. Names and prices appear on
+                      public booking. Paid +1 guests use the lowest ticket price.
+                    </p>
+                    {(body.tickets || []).map((t, idx) => (
+                      <div key={t.id || idx} className="grid gap-2 sm:grid-cols-[1fr_120px_auto]">
+                        <input
+                          className={inputCls}
+                          value={t.name}
+                          placeholder={idx === 0 ? "Dancer" : "Spectator"}
+                          onChange={(e) => {
+                            const tickets = [...(body.tickets || [])];
+                            tickets[idx] = { ...tickets[idx], name: e.target.value };
+                            setBody({ ...body, tickets });
+                          }}
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          className={inputCls}
+                          value={t.price}
+                          onChange={(e) => {
+                            const tickets = [...(body.tickets || [])];
+                            tickets[idx] = {
+                              ...tickets[idx],
+                              price: Number(e.target.value) || 0,
+                            };
+                            setBody({ ...body, tickets });
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="text-xs font-bold text-red-400"
+                          onClick={() => {
+                            const tickets = (body.tickets || []).filter((_, i) => i !== idx);
+                            setBody({ ...body, tickets });
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn-secondary !py-1.5 text-xs"
+                      onClick={() => {
+                        const n = (body.tickets || []).length;
+                        setBody({
+                          ...body,
+                          tickets: [
+                            ...(body.tickets || []),
+                            {
+                              id: `t-${Date.now()}`,
+                              name: n === 0 ? "Dancer" : n === 1 ? "Spectator" : `Ticket ${n + 1}`,
+                              price: n === 1 ? 2.5 : 10,
+                            },
+                          ],
+                        });
+                      }}
+                    >
+                      Add ticket type
+                    </button>
+                  </div>
                 </div>
               )}
               onChange={flash}
@@ -3418,9 +3425,14 @@ function ChatChannelsAdmin({
             <strong className="text-cream">General chat</strong>. Create more channels anytime.
           </p>
         </div>
-        <button type="button" className="btn-primary !py-2 text-sm" onClick={openCreate}>
-          New channel
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/community/" className="btn-primary !py-2 text-sm">
+            Open community chat app
+          </Link>
+          <button type="button" className="btn-secondary !py-2 text-sm" onClick={openCreate}>
+            New channel
+          </button>
+        </div>
       </div>
 
       <AdminTable
