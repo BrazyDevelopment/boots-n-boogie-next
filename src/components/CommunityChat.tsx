@@ -468,7 +468,10 @@ export function CommunityChat({
   }
 
   async function togglePref(
-    key: "chat_notify_messages" | "chat_notify_announcements",
+    key:
+      | "chat_notify_messages"
+      | "chat_notify_announcements"
+      | "chat_email_announcements",
     value: boolean
   ) {
     if (!user) return;
@@ -476,6 +479,13 @@ export function CommunityChat({
     try {
       await updateChatNotifyPrefs(user.id, { [key]: value });
       await refreshUser();
+      if (key === "chat_email_announcements") {
+        setInfo(
+          value
+            ? "You’ll get an email when the studio posts an announcement."
+            : "Announcement emails turned off."
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save preference");
     } finally {
@@ -900,7 +910,7 @@ export function CommunityChat({
                 </p>
                 <div className="space-y-3 rounded-xl border border-line bg-bg/40 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium text-cream">This device</span>
+                    <span className="font-medium text-cream">This device (browser)</span>
                     {perm !== "granted" && perm !== "unsupported" && (
                       <button
                         type="button"
@@ -923,7 +933,7 @@ export function CommunityChat({
                   </div>
 
                   <label className="flex items-center justify-between gap-3 text-muted">
-                    <span>Announcements</span>
+                    <span>Device alerts · Announcements</span>
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-[var(--color-accent)]"
@@ -934,7 +944,7 @@ export function CommunityChat({
                     />
                   </label>
                   <label className="flex items-center justify-between gap-3 text-muted">
-                    <span>General messages</span>
+                    <span>Device alerts · General chat</span>
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-[var(--color-accent)]"
@@ -953,9 +963,32 @@ export function CommunityChat({
                     </button>
                   )}
 
+                  <div className="border-t border-line pt-3">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">
+                      Email · announcements only
+                    </p>
+                    <label className="flex items-start justify-between gap-3 text-muted">
+                      <span className="text-sm leading-snug">
+                        <span className="font-medium text-cream">Email me studio announcements</span>
+                        <span className="mt-0.5 block text-[11px]">
+                          When the studio posts in Announcements (or other admin-only channels),
+                          send an email to {user.email}
+                        </span>
+                      </span>
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+                        checked={!!user.chat_email_announcements}
+                        onChange={(e) =>
+                          togglePref("chat_email_announcements", e.target.checked)
+                        }
+                      />
+                    </label>
+                  </div>
+
                   <p className="text-[11px] leading-relaxed text-muted">
-                    Local alerts work while Community stays open or is installed (Add to Home
-                    Screen). Fully closed-app push needs a dedicated push service.
+                    Device alerts work while Community is open or installed. Announcement emails
+                    work even when the app is closed (Resend must be configured).
                   </p>
                 </div>
               </div>

@@ -145,6 +145,77 @@ export async function listChannelMessages(
     .slice(-limit);
 }
 
+function isAnnouncementChannel(channel: ChatChannel): boolean {
+  return channel.kind === "announcements" || channel.adminOnlyPost === true;
+}
+
+/** Email everyone opted into announcement emails (joined chat + active membership). */
+async function emailAnnouncementSubscribers(opts: {
+  channel: ChatChannel;
+  body: string;
+  authorName: string;
+  authorId: string;
+}): Promise<void> {
+  if (!isAnnouncementChannel(opts.channel)) return;
+
+  try {
+    const members = await listRecords<MemberData>("members", 400);
+    const recipients = members
+      .filter((m) => {
+        if (m.id === opts.authorId) return false;
+        if (!m.data.chat_email_announcements) return false;
+        // Admins always eligible if opted in; members need active benefits + joined chat
+        if (m.data.role === "admin") return true;
+        if (!m.data.chat_joined) return false;
+        return hasMembershipBenefits(m.data.subscription_status, m.data.period_end);
+      })
+      .map((m) => (m.data.email || "").trim().toLowerCase())
+      .filter((e) => e.includes("@"));
+
+    if (!recipients.length) return;
+
+    const settings = await loadPaymentSettings();
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const preview =
+      opts.body.length > 400 ? `${opts.body.slice(0, 400)}…` : opts.body;
+    const safePreview = preview
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br/>");
+
+    await sendResendEmail({
+      apiKey: settings.resendApiKey,
+      from: settings.resendFromEmail || `Boots N Boogie <${SITE.email}>`,
+      to: recipients,
+      subject: `${SITE.name} · ${opts.channel.title}: ${opts.authorName}`,
+      html: `
+        <p style="font-family:Arial,sans-serif;color:#333">
+          New announcement in <strong>${opts.channel.title}</strong>
+        </p>
+        <p style="font-family:Arial,sans-serif;color:#666;font-size:13px">
+          From ${opts.authorName}
+        </p>
+        <div style="font-family:Georgia,serif;font-size:16px;line-height:1.55;color:#1a1208;background:#faf6f0;border-left:4px solid #e8a017;padding:16px 18px;margin:16px 0;border-radius:0 8px 8px 0">
+          ${safePreview}
+        </div>
+        <p style="margin:20px 0">
+          <a href="${origin}/community/" style="background:#e8a017;color:#1a1208;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:700">
+            Open community chat
+          </a>
+        </p>
+        <p style="font-family:Arial,sans-serif;font-size:12px;color:#888">
+          You’re receiving this because you turned on announcement emails in Community settings.
+          You can turn them off anytime in chat settings.
+        </p>
+      `,
+      individual: true,
+    });
+  } catch {
+    /* posting should still succeed if email fails */
+  }
+}
+
 export async function postChatMessage(input: {
   channel: ChatChannel;
   memberId: string;
@@ -159,7 +230,7 @@ export async function postChatMessage(input: {
   if (input.channel.adminOnlyPost && input.memberRole !== "admin") {
     throw new Error("Only studio admins can post in this channel");
   }
-  return createRecord<ChatMessageData>("chat_messages", {
+  const rec = await createRecord<ChatMessageData>("chat_messages", {
     channel_id: input.channel.id,
     channel_slug: input.channel.slug,
     member_id: input.memberId,
@@ -169,6 +240,16 @@ export async function postChatMessage(input: {
     body: text,
     record_status: "active",
   });
+
+  // Fire-and-forget announcement emails for opted-in members
+  void emailAnnouncementSubscribers({
+    channel: input.channel,
+    body: text,
+    authorName: input.memberName,
+    authorId: input.memberId,
+  });
+
+  return rec;
 }
 
 export function canAccessChat(opts: {
@@ -252,7 +333,11 @@ export async function deleteChatMessage(messageId: string): Promise<void> {
 
 export async function updateChatNotifyPrefs(
   memberId: string,
-  prefs: { chat_notify_messages?: boolean; chat_notify_announcements?: boolean }
+  prefs: {
+    chat_notify_messages?: boolean;
+    chat_notify_announcements?: boolean;
+    chat_email_announcements?: boolean;
+  }
 ): Promise<void> {
   await updateRecord<MemberData>("members", memberId, prefs);
 }

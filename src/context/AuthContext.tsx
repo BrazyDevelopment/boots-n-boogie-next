@@ -38,6 +38,7 @@ export type SessionUser = {
   chat_revoked_notified?: boolean;
   chat_notify_messages?: boolean;
   chat_notify_announcements?: boolean;
+  chat_email_announcements?: boolean;
   /** Profile photo URL / compressed data URL */
   avatar_url?: string;
   /** General mailing list opt-in */
@@ -96,6 +97,7 @@ function toSession(rec: SiteRecord<MemberData>): SessionUser {
     // default true when undefined so new members get notifies after opting in
     chat_notify_messages: rec.data.chat_notify_messages !== false,
     chat_notify_announcements: rec.data.chat_notify_announcements !== false,
+    chat_email_announcements: !!rec.data.chat_email_announcements,
     avatar_url: rec.data.avatar_url || undefined,
     mailing_list_opt_in: !!rec.data.mailing_list_opt_in,
   };

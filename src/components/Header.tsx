@@ -15,7 +15,6 @@ const PRIMARY_HREFS = [
   "/classes/",
   "/book/",
   "/events/",
-  "/community/",
   "/blog/",
   "/shop/",
   "/subscribe/",
@@ -170,7 +169,7 @@ export function Header() {
               href="/community/"
               className="rounded-xl px-4 py-3 text-base font-medium text-accent"
             >
-              Community chat
+              Chat
             </Link>
             <Link
               href={user ? "/account/" : "/account/login/"}

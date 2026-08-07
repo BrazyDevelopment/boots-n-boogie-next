@@ -66,6 +66,10 @@
           "type": "boolean",
           "default": true
         },
+        "chat_email_announcements": {
+          "type": "boolean",
+          "default": false
+        },
         "avatar_url": {
           "type": "string",
           "maxLength": 12000

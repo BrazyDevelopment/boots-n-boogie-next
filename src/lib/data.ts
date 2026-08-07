@@ -38,7 +38,6 @@ export const NAV = [
   { label: "Classes", href: "/classes/" },
   { label: "Book", href: "/book/" },
   { label: "Events", href: "/events/" },
-  { label: "Community", href: "/community/" },
   { label: "Blog", href: "/blog/" },
   { label: "Shop", href: "/shop/" },
   { label: "Subscribe", href: "/subscribe/" },
