@@ -27,29 +27,10 @@ body {
   font-family: var(--font-body), system-ui, sans-serif;
   line-height: 1.65;
   overflow-x: hidden;
-  /* Warm leather-like base wash */
   background-image:
-    radial-gradient(ellipse 120% 80% at 50% -20%, rgba(196, 92, 38, 0.12), transparent 50%),
-    radial-gradient(ellipse 80% 50% at 100% 50%, rgba(232, 160, 23, 0.05), transparent 45%),
-    radial-gradient(ellipse 60% 40% at 0% 80%, rgba(196, 92, 38, 0.06), transparent 40%);
+    radial-gradient(ellipse 120% 80% at 50% -20%, rgba(196, 92, 38, 0.1), transparent 50%),
+    radial-gradient(ellipse 80% 50% at 100% 50%, rgba(232, 160, 23, 0.04), transparent 45%);
   background-attachment: fixed;
-}
-
-/* Subtle horseshoe wallpaper (low opacity) */
-body::before {
-  content: "";
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='none' stroke='%23e8a017' stroke-width='3'%3E%3Cpath d='M48 28c-10 12-14 28-10 42 2 8 8 16 18 18 3 1 6-1 6-4v-10c0-2-1.5-4-4-4h-4c-4 0-7-4-6-8 2-10 6-18 12-24 2-2 1-6-2-6H48z'/%3E%3Cpath d='M92 28c10 12 14 28 10 42-2 8-8 16-18 18-3 1-6-1-6-4V74c0-2 1.5-4 4-4h4c4 0 7-4 6-8-2-10-6-18-12-24-2-2-1-6 2-6H92z'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 140px 140px;
-}
-
-body > * {
-  position: relative;
-  z-index: 1;
 }
 
 ::selection {
@@ -75,29 +56,7 @@ body > * {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* Western leather grain overlay for hero sections */
-.western-leather {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  opacity: 0.07;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='l'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='5'/%3E%3CfeColorMatrix values='0 0 0 0 0.6 0 0 0 0 0.35 0 0 0 0 0.15 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23l)'/%3E%3C/svg%3E");
-  mix-blend-mode: soft-light;
-}
-
-/* Rope / lasso border accent */
-.western-rope-border {
-  border: 2px solid transparent;
-  border-image: linear-gradient(
-      135deg,
-      rgba(232, 160, 23, 0.55),
-      rgba(196, 92, 38, 0.35),
-      rgba(232, 160, 23, 0.55)
-    )
-    1;
-}
-
-/* Primary CTA — gold badge with boot kick hover */
+/* Primary CTA */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -108,41 +67,21 @@ body > * {
   color: #1a1208;
   font-weight: 700;
   padding: 0.9rem 1.75rem;
-  transition: all 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+  transition: all 0.2s ease;
   box-shadow:
-    0 2px 0 rgba(90, 50, 10, 0.35),
+    0 2px 0 rgba(90, 50, 10, 0.3),
     0 8px 24px rgba(232, 160, 23, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  border: 1px solid rgba(255, 220, 140, 0.35);
-  position: relative;
-  letter-spacing: 0.02em;
-}
-
-.btn-primary::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath fill='%231a1208' fill-opacity='0.06' d='M10 1l1.2 3.6H15l-3 2.2.9 3.5L10 8.5 7.1 10.3l.9-3.5-3-2.2h3.8z'/%3E%3C/svg%3E");
-  background-size: 18px;
-  opacity: 0.5;
-  pointer-events: none;
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 220, 140, 0.3);
 }
 
 .btn-primary:hover {
   background: linear-gradient(165deg, #ffc94a 0%, var(--color-accent-hover) 50%, #e8a017 100%);
   box-shadow:
-    0 4px 0 rgba(90, 50, 10, 0.3),
-    0 14px 36px rgba(232, 160, 23, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  transform: translateY(-2px) scale(1.02);
-}
-
-.btn-primary:active {
-  transform: translateY(0) scale(0.99);
-  box-shadow:
-    0 1px 0 rgba(90, 50, 10, 0.35),
-    0 4px 12px rgba(232, 160, 23, 0.2);
+    0 4px 0 rgba(90, 50, 10, 0.28),
+    0 12px 32px rgba(232, 160, 23, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -169,27 +108,11 @@ body > * {
 }
 
 .section-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
   font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--color-accent);
-  text-shadow: 0 0 24px rgba(232, 160, 23, 0.25);
-}
-
-.section-label::before {
-  content: "★";
-  font-size: 0.65em;
-  opacity: 0.85;
-}
-
-.section-label::after {
-  content: "★";
-  font-size: 0.65em;
-  opacity: 0.85;
 }
 
 .card-surface {
@@ -211,11 +134,6 @@ body > * {
     0 16px 48px rgba(0, 0, 0, 0.32),
     0 0 0 1px rgba(232, 160, 23, 0.06),
     inset 0 1px 0 rgba(243, 230, 208, 0.06);
-}
-
-/* Soft gold underline for display headings in places that use this class */
-.western-heading-glow {
-  text-shadow: 0 2px 24px rgba(232, 160, 23, 0.15);
 }
 
 .prose-bnb p {
@@ -263,19 +181,3 @@ body > * {
   );
 }
 
-/* Hero badge pill */
-.badge-western {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(232, 160, 23, 0.4);
-  background: linear-gradient(135deg, rgba(232, 160, 23, 0.18), rgba(196, 92, 38, 0.12));
-  padding: 0.4rem 1rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--color-accent);
-  box-shadow: 0 0 24px rgba(232, 160, 23, 0.12);
-}
