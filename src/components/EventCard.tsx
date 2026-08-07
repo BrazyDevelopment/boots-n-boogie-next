@@ -24,13 +24,15 @@ export function EventCard({ item }: { item: BnBEvent }) {
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
-              open ? "bg-accent/15 text-accent" : "bg-white/8 text-muted"
+              open
+                ? "border border-accent/35 bg-accent/15 text-accent shadow-[0_0_16px_rgba(232,160,23,0.12)]"
+                : "bg-white/8 text-muted"
             }`}
           >
-            {open ? "Tickets available" : "Registration closed"}
+            {open ? "★ Tickets available" : "Registration closed"}
           </span>
           {item.isSocial && (
-            <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+            <span className="rounded-full border border-copper/40 bg-copper/15 px-3 py-1 text-xs font-semibold text-accent">
               Quarterly social
             </span>
           )}

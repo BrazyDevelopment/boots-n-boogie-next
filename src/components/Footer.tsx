@@ -35,7 +35,7 @@ export function Footer() {
   }
 
   return (
-    <footer className="mt-8 border-t border-line bg-bg-elevated">
+    <footer className="footer-western mt-8 border-t border-line">
       <div className="container-page py-16">
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2">
@@ -45,7 +45,7 @@ export function Footer() {
                 alt={SITE.name}
                 width={140}
                 height={140}
-                className="h-16 w-16 object-contain md:h-20 md:w-20"
+                className="h-16 w-16 object-contain drop-shadow-[0_0_20px_rgba(232,160,23,0.25)] md:h-20 md:w-20"
               />
             </Link>
             <p className="mt-5 max-w-md text-sm leading-relaxed text-muted">

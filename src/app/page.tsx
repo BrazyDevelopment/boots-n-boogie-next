@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Heart,
   Music2,
-  Sparkles,
   Users,
   Ticket,
 } from "lucide-react";
@@ -14,6 +13,13 @@ import { EventCard } from "@/components/EventCard";
 import { FloorGallery } from "@/components/FloorGallery";
 import { FranchiseTeaser } from "@/components/FranchiseTeaser";
 import { Reveal } from "@/components/Reveal";
+import {
+  BootIcon,
+  CowboyHatIcon,
+  HorseshoeIcon,
+  StarSpurIcon,
+  WesternDivider,
+} from "@/components/WesternDecor";
 import {
   CLASSES,
   EVENTS,
@@ -38,22 +44,41 @@ export default function HomePage() {
             className="object-cover object-center"
             sizes="100vw"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-bg via-bg/85 to-bg/40" />
-          <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/30 to-bg/50" />
+          <div className="absolute inset-0 bg-gradient-to-r from-bg via-bg/88 to-bg/45" />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/35 to-bg/55" />
           <div className="grain" />
+          <div className="western-leather" />
+        </div>
+        <div className="pointer-events-none absolute inset-0 -z-[5] overflow-hidden" aria-hidden>
+          <HorseshoeIcon
+            size={160}
+            className="absolute -left-6 top-28 text-accent/15 md:left-4 md:top-36"
+          />
+          <CowboyHatIcon
+            size={130}
+            className="absolute right-2 top-32 text-copper/20 md:right-10 md:top-40"
+          />
+          <BootIcon
+            size={110}
+            className="absolute bottom-28 right-[18%] text-accent/12 md:bottom-36"
+          />
         </div>
 
         <div className="container-page w-full">
           <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full border border-accent/35 bg-accent/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-accent">
-              <Sparkles size={14} />
+            <span className="badge-western">
+              <StarSpurIcon size={14} />
               Line dancing · Rugby & Midlands
+              <HorseshoeIcon size={16} className="text-accent" />
             </span>
           </Reveal>
           <Reveal delay={0.08}>
-            <h1 className="mt-6 max-w-[12ch] font-display text-6xl leading-[0.92] tracking-wide text-foreground md:text-8xl lg:text-9xl">
+            <h1 className="western-heading-glow mt-6 max-w-[12ch] font-display text-6xl leading-[0.92] tracking-wide text-foreground md:text-8xl lg:text-9xl">
               Kick up your <span className="text-accent">heels</span>
             </h1>
+          </Reveal>
+          <Reveal delay={0.12}>
+            <WesternDivider className="mt-5 max-w-sm" />
           </Reveal>
           <Reveal delay={0.16}>
             <p className="mt-6 max-w-xl text-lg text-muted md:text-xl">
@@ -73,9 +98,10 @@ export default function HomePage() {
             </div>
           </Reveal>
           <Reveal delay={0.32}>
-            <div className="mt-14 grid grid-cols-2 gap-6 border-t border-line pt-8 sm:grid-cols-4">
+            <div className="mt-14 grid grid-cols-2 gap-6 border-t border-accent/25 pt-8 sm:grid-cols-4">
               {STATS.map((s) => (
-                <div key={s.label}>
+                <div key={s.label} className="relative pl-3">
+                  <span className="absolute left-0 top-1 h-8 w-0.5 rounded-full bg-gradient-to-b from-accent to-copper/60" />
                   <div className="font-display text-3xl tracking-wide text-accent md:text-4xl">
                     {s.num}
                   </div>
